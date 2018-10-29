@@ -565,114 +565,178 @@ void OS_SDL::process_events() {
 	SDL_bool text_edit_mode = SDL_IsTextInputActive();
 	Vector<String> dropped_files;
 
-	// while (SDL_PollEvent(&event)) {
+	while (SDL_PollEvent(&event)) 
+	{
+		if (event.type == SDL_QUIT ) 
+		{
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_QUIT");
+			// force_quit = true;
+			main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
+			return;
+		}
+		if (event.type == SDL_WINDOWEVENT) {
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_WINDOWEVENT");
+			switch (event.window.event) {
+				case SDL_WINDOWEVENT_EXPOSED:
+					Main::force_redraw();
+					break;
+				case SDL_WINDOWEVENT_MINIMIZED:
+					minimized = true;
+					break;
+				case SDL_WINDOWEVENT_LEAVE:
+					if (main_loop /*&& !mouse_mode_grab*/)
+						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_EXIT);
+					// if (input)
+						// input->set_mouse_in_window(false);
+					break;
+				case SDL_WINDOWEVENT_ENTER:
+					if (main_loop /*&& !mouse_mode_grab*/)
+						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
+					// if (input)
+						// input->set_mouse_in_window(true);
+					break;
+				case SDL_WINDOWEVENT_FOCUS_GAINED:
+					minimized = false;
+					window_has_focus = true;
+					main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
+					// FIXME: Mot sure if we should handle the mouse grabbing manually or if SDL will handle it. Test.
+					break;
+				case SDL_WINDOWEVENT_SIZE_CHANGED:
+					window_size = get_window_size();
+					current_videomode.width = window_size.x;
+					current_videomode.height = window_size.y;
+					break;
+				case SDL_WINDOWEVENT_CLOSE:
+					// force_quit = true;
+					main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
+					return;
+					break;
+			}
 
-	// 	if (event.type == SDL_WINDOWEVENT) {
+			continue; // Probably not a good pattern, but I'm not a fan of else-if in this case.
+		}
 
-	// 		switch (event.window.event) {
-	// 			case SDL_WINDOWEVENT_EXPOSED:
-	// 				Main::force_redraw();
-	// 				break;
-	// 			case SDL_WINDOWEVENT_MINIMIZED:
-	// 				minimized = true;
-	// 				break;
-	// 			case SDL_WINDOWEVENT_LEAVE:
-	// 				if (main_loop && !mouse_mode_grab)
-	// 					main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_EXIT);
-	// 				if (input)
-	// 					input->set_mouse_in_window(false);
-	// 				break;
-	// 			case SDL_WINDOWEVENT_ENTER:
-	// 				if (main_loop && !mouse_mode_grab)
-	// 					main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
-	// 				if (input)
-	// 					input->set_mouse_in_window(true);
-	// 				break;
-	// 			case SDL_WINDOWEVENT_FOCUS_GAINED:
-	// 				minimized = false;
-	// 				window_has_focus = true;
-	// 				main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
-	// 				// FIXME: Mot sure if we should handle the mouse grabbing manually or if SDL will handle it. Test.
-	// 				break;
-	// 			case SDL_WINDOWEVENT_SIZE_CHANGED:
-	// 				window_size = get_window_size();
-	// 				current_videomode.width = window_size.x;
-	// 				current_videomode.height = window_size.y;
-	// 				break;
-	// 			case SDL_WINDOWEVENT_CLOSE:
-	// 				main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
-	// 				break;
-	// 		}
+		if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) 
+		{
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_MOUESBUTTONDOWN/UP");
+			/* exit in case of a mouse button press */
+			last_timestamp = event.button.timestamp;
+			if (mouse_mode == MOUSE_MODE_CAPTURED) {
+				event.button.x = last_mouse_pos.x;
+				event.button.y = last_mouse_pos.y;
+			}
 
-	// 		continue; // Probably not a good pattern, but I'm not a fan of else-if in this case.
-	// 	}
+			// InputEvent 
+			InputEvent ievent;
+			ievent.ID = ++event_id;
+			ievent.device = 0;
+			ievent.type = InputEvent::MOUSE_BUTTON;
 
-	// 	if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
-	// 		/* exit in case of a mouse button press */
-	// 		last_timestamp = event.button.timestamp;
-	// 		if (mouse_mode == MOUSE_MODE_CAPTURED) {
-	// 			event.button.x = last_mouse_pos.x;
-	// 			event.button.y = last_mouse_pos.y;
-	// 		}
+			// Ref<InputEventMouseButton> sc;
+			// sc.instance();
 
-	// 		Ref<InputEventMouseButton> sc;
-	// 		sc.instance();
+			ievent.mouse_button.mod = get_key_modifier_state(0);
+			// sc->
+			// sc->
+			ievent.mouse_button.button_mask = get_mouse_button_state(0, true);
+			ievent.mouse_button.x = event.button.x;
+			ievent.mouse_button.y = event.button.y;
+			// ievent.mouse_button.global_position = ievent.mouse_button.position;
+			ievent.mouse_button.button_index = event.button.button;
 
-	// 		sc->mod = get_key_modifier_state(0);
-	// 		sc->set_button_mask(get_mouse_button_state(0, true));
-	// 		sc->set_position(Vector2(event.button.x, event.button.y));
-	// 		sc->set_global_position(sc->get_position());
-	// 		sc->set_button_index(event.button.button);
+			// Swapping buttons around?
+			if (ievent.mouse_button.button_index == 2)
+				ievent.mouse_button.button_index = 3;
+			else if (ievent.mouse_button.button_index == 3)
+				ievent.mouse_button.button_index = 2;
 
-	// 		// Swapping buttons around?
-	// 		if (sc->get_button_index() == 2)
-	// 			sc->set_button_index(3);
-	// 		else if (sc->get_button_index() == 3)
-	// 			sc->set_button_index(2);
+			ievent.mouse_button.pressed = (event.button.state == SDL_PRESSED);
 
-	// 		sc->set_pressed(event.button.state == SDL_PRESSED);
+			ievent.mouse_button.doubleclick = (event.button.clicks > 1);
 
-	// 		sc->set_doubleclick(event.button.clicks > 1);
 
-	// 		input->parse_input_event(sc);
-	// 		continue;
-	// 	}
+			input->parse_input_event(ievent);
+			continue;
+		}
 
-	// 	// Ahh, good ol' abstractions. :3
-	// 	if (event.type == SDL_MOUSEMOTION) {
-	// 		last_timestamp = event.motion.timestamp;
+		// Ahh, good ol' abstractions. :3
+		if (event.type == SDL_MOUSEMOTION) {
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_MOUSEMOTION");
+			last_timestamp = event.motion.timestamp;
 
-	// 		// Motion is also simple.
-	// 		// A little hack is in order
-	// 		// to be able to send relative motion events.
-	// 		Point2i pos(event.motion.x, event.motion.y);
+			InputEvent ievent;
+			ievent.ID = ++event_id;
+			ievent.device = 0;
+			ievent.type = InputEvent::MOUSE_MOTION;
+			// Motion is also simple.
+			// A little hack is in order
+			// to be able to send relative motion events.
+			Point2i pos(event.motion.x, event.motion.y);
 
-	// 		// TODO: Handle mouse warp. Is this needed in SDL?
+			// TODO: Handle mouse warp. Is this needed in SDL?
 
-	// 		Point2i rel(event.motion.xrel, event.motion.yrel);
+			Point2i rel(event.motion.xrel, event.motion.yrel);
 
-	// 		Ref<InputEventMouseMotion> mm;
-	// 		mm.instance();
+			// Ref<InputEventMouseMotion> mm;
+			// mm.instance();
 
-	// 		mm->mod = get_key_modifier_state(0);
-	// 		mm->set_button_mask(get_mouse_button_state(event.motion.state, false));
-	// 		mm->set_position(pos);
-	// 		mm->set_global_position(pos);
-	// 		input->set_mouse_position(pos);
-	// 		mm->set_speed(input->get_last_mouse_speed());
-	// 		mm->set_relative(rel);
+			ievent.mouse_motion.mod = get_key_modifier_state(0);
+			ievent.mouse_motion.button_mask =get_mouse_button_state(event.motion.state, false);
+			ievent.mouse_motion.x = pos.x;
+			ievent.mouse_motion.y = pos.y;
+			// ievent.mouse_motion.set_global_position(pos);
+			input->set_mouse_pos(pos);
 
-	// 		last_mouse_pos = pos;
+			// ievent.mouse_motion.speed = input->get_last_mouse_speed();
+			// ievent.mouse_motion.relative = rel;
 
-	// 		// Don't propagate the motion event unless we have focus
-	// 		// this is so that the relative motion doesn't get messed up
-	// 		// after we regain focus.
-	// 		// FIXME: Not sure if we need this or not.
-	// 		if (window_has_focus || !mouse_mode_grab)
-	// 			input->parse_input_event(mm);
+			last_mouse_pos = pos;
 
-	// 		continue;
-	// 	}
+			// Don't propagate the motion event unless we have focus
+			// this is so that the relative motion doesn't get messed up
+			// after we regain focus.
+			// FIXME: Not sure if we need this or not.
+			if (window_has_focus /*|| !mouse_mode_grab*/)
+				input->parse_input_event(ievent);
+
+			continue;
+		}
+
+		if( event.type ==  SDL_FINGERDOWN || event.type == SDL_FINGERUP )
+		{
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_FINGERDOW | SDL_FINGERUP");
+			InputEvent ievent;
+			ievent.ID = ++event_id;
+			ievent.device = 0;
+			ievent.type = InputEvent::SCREEN_TOUCH;
+			ievent.screen_touch.index = event.tfinger.fingerId;
+			ievent.screen_touch.x = event.tfinger.x;
+			ievent.screen_touch.y = event.tfinger.y;
+			ievent.screen_touch.pressed = (event.type ==  SDL_FINGERDOWN);
+			input->parse_input_event(ievent);
+			continue;
+		}
+
+		if( event.type ==  SDL_FINGERMOTION )
+		{
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_FINGERMOTION");
+			InputEvent ievent;
+			ievent.type = InputEvent::SCREEN_DRAG;
+			ievent.ID = ++event_id;
+			ievent.device = 0;
+			ievent.screen_touch.index = event.tfinger.fingerId;
+			ievent.screen_touch.x = event.tfinger.x;
+			ievent.screen_touch.y = event.tfinger.y;
+			ievent.screen_touch.pressed = true;
+			input->parse_input_event(ievent);
+			continue;
+		}
 
 	// 	// if (event.type == SDL_MOUSEWHEEL) {
 	// 	// 	last_timestamp = event.wheel.timestamp;
@@ -716,102 +780,119 @@ void OS_SDL::process_events() {
 	// 	// 	continue;
 	// 	// }
 
-	// 	// Outside of text input mode. Events created here won't have unicode mappings.
-	// 	if (event.type == SDL_KEYDOWN && text_edit_mode == SDL_FALSE) {
-	// 		last_timestamp = event.key.timestamp;
-	// 		SDL_Keysym keysym = event.key.keysym;
-	// 		SDL_Scancode scancode = keysym.scancode;
-	// 		SDL_Keycode keycode = keysym.sym;
+		// Outside of text input mode. Events created here won't have unicode mappings.
+		if (event.type == SDL_KEYDOWN /*&& text_edit_mode == SDL_FALSE*/) 
+		{
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_KEYDOWN");
+			last_timestamp = event.key.timestamp;
+			SDL_Keysym keysym = event.key.keysym;
+			SDL_Scancode scancode = keysym.scancode;
+			SDL_Keycode keycode = keysym.sym;
 
-	// 		Ref<InputEventKey> k;
+			InputEvent ievent;
+			ievent.ID = ++event_id;
+			ievent.device = 0;
+			ievent.type = InputEvent::KEY;
+			// Ref<InputEventKey> k;
 
-	// 		k.instance();
-	// 		if (keycode == 0) {
-	// 			continue;
-	// 		}
+			// k.instance();
+			if (keycode == 0) {
+				continue;
+			}
 
-	// 		k->mod = get_key_modifier_state(0);
-	// 		unsigned int non_printable_keycode = KeyMappingSDL::get_non_printable_keycode(keycode);
+			ievent.key.mod = get_key_modifier_state(0);
+			unsigned int non_printable_keycode = KeyMappingSDL::get_non_printable_keycode(keycode);
 
-	// 		k->set_pressed(event.key.state == SDL_PRESSED);
-	// 		k->set_echo(event.key.repeat > 0);
+			ievent.key.pressed = (event.key.state == SDL_PRESSED);
+			ievent.key.echo = (event.key.repeat > 0);
 
-	// 		// Not quite sure how we should handle this to be honest.
-	// 		if (non_printable_keycode != 0) {
-	// 			k->set_scancode(non_printable_keycode);
-	// 		} else {
-	// 			k->set_scancode(scancode);
-	// 		}
+			// Not quite sure how we should handle this to be honest.
+			if (non_printable_keycode != 0) {
+				ievent.key.scancode = (non_printable_keycode);
+			} else {
+				ievent.key.scancode = (scancode);
+			}
+			//TODO old godot API style
+			input->parse_input_event(ievent);
+			continue;
+			// If we're in text input mode.
+		} 
+		// else if (text_edit_mode == SDL_TRUE) {
+		// 	SDL_Keysym keysym = event.key.keysym;
+		// 	SDL_Keycode keycode = keysym.sym;
 
-	// 		input->parse_input_event(k);
-	// 		continue;
-	// 		// If we're in text input mode.
-	// 	} else if (text_edit_mode == SDL_TRUE) {
-	// 		SDL_Keysym keysym = event.key.keysym;
-	// 		SDL_Keycode keycode = keysym.sym;
+		// 	unsigned int non_printable_keycode = KeyMappingSDL::get_non_printable_keycode(keycode);
 
-	// 		unsigned int non_printable_keycode = KeyMappingSDL::get_non_printable_keycode(keycode);
+		// 	// If a modifier / non-printable key is hit, handle that directly
+		// 	if (non_printable_keycode != 0) {
+		// 		Ref<InputEventKey> k;
+		// 		k.instance();
+		// 		k->mod = get_key_modifier_state(0);
+		// 		k->pressed = (event.key.state == SDL_PRESSED);
+		// 		k->scancode = (non_printable_keycode);
+		// 		k->echo = (event.key.repeat > 0);
+		// 		//TODO old godot API style
+		// 		// input->parse_input_event(k);
+		// 		continue;
+		// 		// Otherwise wait until TextInput events to emit the key event with unicode.
+		// 	} else {
+		// 		current_scancode = keysym.scancode;
+		// 		current_echo = event.key.repeat > 0;
+		// 	}
+		// }
 
-	// 		// If a modifier / non-printable key is hit, handle that directly
-	// 		if (non_printable_keycode != 0) {
-	// 			Ref<InputEventKey> k;
-	// 			k.instance();
-	// 			k->mod = get_key_modifier_state(0);
-	// 			k->set_pressed(event.key.state == SDL_PRESSED);
-	// 			k->set_scancode(non_printable_keycode);
-	// 			k->set_echo(event.key.repeat > 0);
-	// 			input->parse_input_event(k);
-	// 			continue;
-	// 			// Otherwise wait until TextInput events to emit the key event with unicode.
-	// 		} else {
-	// 			current_scancode = keysym.scancode;
-	// 			current_echo = event.key.repeat > 0;
-	// 		}
-	// 	}
+		// if (event.type == SDL_TEXTINPUT && text_edit_mode == SDL_TRUE) {
+		// 	last_timestamp = event.text.timestamp;
 
-	// 	if (event.type == SDL_TEXTINPUT && text_edit_mode == SDL_TRUE) {
-	// 		last_timestamp = event.text.timestamp;
+		// 	String tmp;
+		// 	tmp.parse_utf8(event.text.text);
+		// 	for (int i = 0; i < tmp.length(); i++) {
+		// 		if (tmp[i] == 0) continue;
 
-	// 		String tmp;
-	// 		tmp.parse_utf8(event.text.text);
-	// 		for (int i = 0; i < tmp.length(); i++) {
-	// 			if (tmp[i] == 0) continue;
+		// 		Ref<InputEventKey> k;
+		// 		k.instance();
+		// 		k->mod = get_key_modifier_state(0);
+		// 		k->set_unicode(tmp[i]);
+		// 		k->set_pressed(true);
+		// 		if (current_scancode) k->set_scancode(current_scancode);
+		// 		k->set_echo(current_echo);
 
-	// 			Ref<InputEventKey> k;
-	// 			k.instance();
-	// 			k->mod = get_key_modifier_state(0);
-	// 			k->set_unicode(tmp[i]);
-	// 			k->set_pressed(true);
-	// 			if (current_scancode) k->set_scancode(current_scancode);
-	// 			k->set_echo(current_echo);
+		// 		input->parse_input_event(k);
+		// 		continue;
+		// 	}
+		// }
 
-	// 			input->parse_input_event(k);
-	// 			continue;
-	// 		}
-	// 	}
+		if (event.type == SDL_KEYUP) {
+			if(OS::get_singleton()->is_stdout_verbose())
+				print_line("SDL_KEYUP");
+			last_timestamp = event.key.timestamp;
+			SDL_Keysym keysym = event.key.keysym;
+			SDL_Scancode scancode = keysym.scancode;
+			SDL_Keycode keycode = keysym.sym;
 
-	// 	if (event.type == SDL_KEYUP) {
-	// 		last_timestamp = event.key.timestamp;
-	// 		SDL_Keysym keysym = event.key.keysym;
-	// 		SDL_Scancode scancode = keysym.scancode;
-	// 		SDL_Keycode keycode = keysym.sym;
+			InputEvent ievent;
+			ievent.ID = ++event_id;
+			ievent.device = 0;
+			ievent.type = InputEvent::KEY;
 
-	// 		Ref<InputEventKey> k;
-	// 		k.instance();
-	// 		if (keycode == 0) {
-	// 			continue;
-	// 		}
+			// Ref<InputEventKey> k;
+			// k.instance();
+			if (keycode == 0) {
+				continue;
+			}
 
-	// 		k->mod = get_key_modifier_state(0);
+			ievent.key.mod = get_key_modifier_state(0);
 
-	// 		k->set_unicode(keycode);
-	// 		k->set_pressed(event.key.state == SDL_PRESSED);
-	// 		k->set_scancode(scancode);
-	// 		k->set_echo(event.key.repeat > 0);
+			ievent.key.unicode = (keycode);
+			ievent.key.pressed = (event.key.state == SDL_PRESSED);
+			ievent.key.scancode = (scancode);
+			ievent.key.echo = (event.key.repeat > 0);
 
-	// 		input->parse_input_event(k);
-	// 		continue;
-	// 	}
+			// ievent.key = *k;
+			input->parse_input_event(ievent);
+			continue;
+		}
 
 	// 	// if (event.type == SDL_DROPFILE) {
 
@@ -840,7 +921,7 @@ void OS_SDL::process_events() {
 
 	// 	// 	continue;
 	// 	// }
-	// }
+	}
 
 	if (do_mouse_warp) {
 		// Handle mouse warp here if needed. Not sure.
@@ -1361,5 +1442,6 @@ OS_SDL::OS_SDL() {
 
 	minimized = false;
 	// xim_style = 0L;
+	event_id = 0;
 	mouse_mode = MOUSE_MODE_VISIBLE;
 }

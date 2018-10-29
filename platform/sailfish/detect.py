@@ -134,7 +134,7 @@ def configure(env):
     if ( env['builtin_openssl'] == "no" ):
         env.ParseConfig('pkg-config openssl --cflags --libs')
 
-    if not env['builtin_libwebp']:
+    if ( env['builtin_libwebp'] == 'no' ):
         env.ParseConfig('pkg-config libwebp --cflags --libs')
 
 
@@ -186,7 +186,7 @@ def configure(env):
         env.ParseConfig('pkg-config vorbis vorbisfile --cflags --libs')
 
     if (env['builtin_opus'] == "no"):
-        env['builtin_libogg'] = False  # Needed to link against system opus
+        env['builtin_libogg'] = 'no'  # Needed to link against system opus
         env.ParseConfig('pkg-config opus opusfile --cflags --libs')
 
     if (env['builtin_libogg'] == "no" ):
@@ -235,7 +235,7 @@ def configure(env):
         env.ParseConfig('pkg-config zlib --cflags --libs')
 
     env.Append(CPPPATH=['#platform/sailfish'])
-    env.Append(CPPFLAGS=['-DSDL_ENABLED', '-DUNIX_ENABLED', '-DOPENGL_ENABLED', '-DGLES2_ENABLED', '-DGLES_ENABLED'])
+    env.Append(CPPFLAGS=['-DSDL_ENABLED', '-DUNIX_ENABLED', '-DOPENGL_ENABLED', '-DGLES2_ENABLED', '-DGLES_ENABLED', '-DTOUCH_ENABLED'])
     # env.Append(LIBS=['GL', 'pthread'])
     env.Append(LIBS=['GLESv2', 'pthread'])
 

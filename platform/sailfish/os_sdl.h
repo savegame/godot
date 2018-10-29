@@ -77,6 +77,7 @@ class OS_SDL : public OS_Unix {
 	int xmblen;
 	unsigned long last_timestamp;
 	unsigned long last_keyrelease_time;
+	unsigned int event_id;
 	// ::XIC xic;
 	// ::XIM xim;
 	// ::XIMStyle xim_style;

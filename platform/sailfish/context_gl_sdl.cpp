@@ -34,6 +34,7 @@
 #if defined(OPENGL_ENABLED) || defined(GLES_ENABLED)
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <unistd.h>
 #include <GLES3/gl3.h>
 
@@ -64,17 +65,27 @@ Error ContextGL_SDL::initialize() {
 	//	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	//	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	//} else {
-		// Try OpenGL ES 3.0
-	//	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-	//	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+		// Try OpenGL ES 2.0
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	//	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 	//}//
 
 	//sdl_window = SDL_CreateWindow("Godot", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, OS::get_singleton()->get_video_mode().width, OS::get_singleton()->get_video_mode().height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
-	sdl_window = SDL_CreateWindow("Godot", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 540, 960, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_SHOWN);
-	ERR_FAIL_COND_V(!sdl_window, ERR_UNCONFIGURED);
+	SDL_DisplayMode dm;
+	SDL_GetCurrentDisplayMode(0, &dm);
 
+	int w = 720; //540
+	int h = 1280; //960
+
+	// std::string s;
+	// s.resize(120);
+	// sprintf(s.c_str(),"Display 0 dimension is %ix%i",dm.w,dm.h);
+	// ERR_EXPLAIN(s.c_str);
+
+	sdl_window = SDL_CreateWindow("Godot", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, dm.w, dm.h, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_SHOWN);
+	ERR_FAIL_COND_V(!sdl_window, ERR_UNCONFIGURED);
 	p->gl_context = SDL_GL_CreateContext(sdl_window);
 
 	if(p->gl_context == NULL) {
