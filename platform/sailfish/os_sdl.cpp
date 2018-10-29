@@ -571,9 +571,9 @@ void OS_SDL::process_events() {
 		{
 			if(OS::get_singleton()->is_stdout_verbose())
 				print_line("SDL_QUIT");
-			// force_quit = true;
+			force_quit = true;
 			main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
-			return;
+			break;
 		}
 		if (event.type == SDL_WINDOWEVENT) {
 			if(OS::get_singleton()->is_stdout_verbose())
@@ -581,37 +581,50 @@ void OS_SDL::process_events() {
 			switch (event.window.event) {
 				case SDL_WINDOWEVENT_EXPOSED:
 					Main::force_redraw();
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("DL_WINDOWEVENT_EXPOSED");
 					break;
 				case SDL_WINDOWEVENT_MINIMIZED:
 					minimized = true;
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("SDL_WINDOWEVENT_MINIMIZED");
 					break;
 				case SDL_WINDOWEVENT_LEAVE:
 					if (main_loop /*&& !mouse_mode_grab*/)
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_EXIT);
 					// if (input)
 						// input->set_mouse_in_window(false);
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("SDL_WINDOWEVENT_LEAVE");
 					break;
 				case SDL_WINDOWEVENT_ENTER:
 					if (main_loop /*&& !mouse_mode_grab*/)
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
 					// if (input)
 						// input->set_mouse_in_window(true);
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("SDL_WINDOWEVENT_ENTER");
 					break;
 				case SDL_WINDOWEVENT_FOCUS_GAINED:
 					minimized = false;
 					window_has_focus = true;
 					main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("SDL_WINDOWEVENT_FOCUS_GAINED");
 					// FIXME: Mot sure if we should handle the mouse grabbing manually or if SDL will handle it. Test.
 					break;
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
 					window_size = get_window_size();
 					current_videomode.width = window_size.x;
 					current_videomode.height = window_size.y;
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("SDL_WINDOWEVENT_SIZE_CHANGED");
 					break;
 				case SDL_WINDOWEVENT_CLOSE:
 					// force_quit = true;
+					if(OS::get_singleton()->is_stdout_verbose())
+						print_line("SDL_WINDOWEVENT_CLOSE");
 					main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
-					return;
 					break;
 			}
 
@@ -656,7 +669,6 @@ void OS_SDL::process_events() {
 			ievent.mouse_button.pressed = (event.button.state == SDL_PRESSED);
 
 			ievent.mouse_button.doubleclick = (event.button.clicks > 1);
-
 
 			input->parse_input_event(ievent);
 			continue;
@@ -705,39 +717,156 @@ void OS_SDL::process_events() {
 
 			continue;
 		}
-
+#if defined(TOUCH_ENABLED)
 		if( event.type ==  SDL_FINGERDOWN || event.type == SDL_FINGERUP )
 		{
+			// bool is_begin = event.type ==  SDL_FINGERDOWN;
+
 			if(OS::get_singleton()->is_stdout_verbose())
 				print_line("SDL_FINGERDOW | SDL_FINGERUP");
-			InputEvent ievent;
-			ievent.ID = ++event_id;
-			ievent.device = 0;
-			ievent.type = InputEvent::SCREEN_TOUCH;
-			ievent.screen_touch.index = event.tfinger.fingerId;
-			ievent.screen_touch.x = event.tfinger.x;
-			ievent.screen_touch.y = event.tfinger.y;
-			ievent.screen_touch.pressed = (event.type ==  SDL_FINGERDOWN);
-			input->parse_input_event(ievent);
-			continue;
+			// InputEvent ievent;
+			// ievent.ID = ++event_id;
+			// ievent.device = 0;
+
+			// // emulate mouse events on touch screens
+
+			// InputEvent mouse_event;
+			// mouse_event.ID = ++event_id;
+			// mouse_event.device = 0;
+
+			// ievent.type = InputEvent::SCREEN_TOUCH;
+			// ievent.screen_touch.index = event.tfinger.fingerId;
+			// ievent.screen_touch.x = event.tfinger.x;
+			// ievent.screen_touch.y = event.tfinger.y;
+			// ievent.screen_touch.pressed = is_begin;
+
+
+			// // ievent.screen_touch.state[event.tfinger.fingerId] = 
+
+			// input->parse_input_event(ievent);
+			// continue;
+			//---------------------------------------------------------------
+			InputEvent input_event;
+			input_event.ID = ++event_id;
+			input_event.device = 0;
+
+			InputEvent mouse_event;
+			mouse_event.ID = ++event_id;
+			mouse_event.device = 0;
+
+			int index = (int)event.tfinger.fingerId;
+			Point2i pos = Point2i(event.tfinger.x, event.tfinger.y);
+
+			bool is_begin = event.type ==  SDL_FINGERDOWN;
+
+			bool translate = false;
+			if (is_begin) {
+				++num_touches;
+				if (num_touches == 1) {
+					touch_mouse_index = index;
+					translate = true;
+				}
+			} else {
+				--num_touches;
+				if (num_touches == 0) {
+					translate = true;
+				} else if (num_touches < 0) { // Defensive
+					num_touches = 0;
+				}
+				touch_mouse_index = -1;
+			}
+
+			input_event.type = InputEvent::SCREEN_TOUCH;
+			input_event.screen_touch.index = index;
+			input_event.screen_touch.x = pos.x;
+			input_event.screen_touch.y = pos.y;
+			input_event.screen_touch.pressed = is_begin;
+
+			if (translate) {
+				mouse_event.type = InputEvent::MOUSE_BUTTON;
+				mouse_event.mouse_button.x = pos.x;
+				mouse_event.mouse_button.y = pos.y;
+				mouse_event.mouse_button.global_x = pos.x;
+				mouse_event.mouse_button.global_y = pos.y;
+				input->set_mouse_pos(pos);
+				mouse_event.mouse_button.button_index = 1;
+				mouse_event.mouse_button.pressed = is_begin;
+				last_mouse_pos = pos;
+			}
+
+			if (is_begin) {
+				if (touch.state.has(index)) // Defensive
+					break;
+				touch.state[index] = pos;
+				input->parse_input_event(input_event);
+				input->parse_input_event(mouse_event);
+			} else {
+				if (!touch.state.has(index)) // Defensive
+					break;
+				touch.state.erase(index);
+				input->parse_input_event(input_event);
+				input->parse_input_event(mouse_event);
+			}
 		}
 
 		if( event.type ==  SDL_FINGERMOTION )
 		{
 			if(OS::get_singleton()->is_stdout_verbose())
 				print_line("SDL_FINGERMOTION");
-			InputEvent ievent;
-			ievent.type = InputEvent::SCREEN_DRAG;
-			ievent.ID = ++event_id;
-			ievent.device = 0;
-			ievent.screen_touch.index = event.tfinger.fingerId;
-			ievent.screen_touch.x = event.tfinger.x;
-			ievent.screen_touch.y = event.tfinger.y;
-			ievent.screen_touch.pressed = true;
-			input->parse_input_event(ievent);
+			// InputEvent ievent;
+			// ievent.type = InputEvent::SCREEN_DRAG;
+			// ievent.ID = ++event_id;
+			// ievent.device = 0;
+			// ievent.screen_drag.index = event.tfinger.fingerId;
+			// ievent.screen_drag.x = event.tfinger.x;
+			// ievent.screen_drag.y = event.tfinger.y;
+			// ievent.screen_drag.pressed = true;
+			// input->parse_input_event(ievent);
 			continue;
-		}
 
+			InputEvent input_event;
+			input_event.ID = ++event_id;
+			input_event.device = 0;
+
+			InputEvent mouse_event;
+			mouse_event.ID = ++event_id;
+			mouse_event.device = 0;
+
+			int index = (int)event.tfinger.fingerId;
+			Point2i pos = Point2i(event.tfinger.x, event.tfinger.y);
+
+			Map<int, Vector2>::Element *curr_pos_elem = touch.state.find(index);
+			if (!curr_pos_elem) // Defensive
+				break;
+
+			if (curr_pos_elem->value() != pos) 
+			{
+				input_event.type = InputEvent::SCREEN_DRAG;
+				input_event.screen_drag.index = index;
+				input_event.screen_drag.x = pos.x;
+				input_event.screen_drag.y = pos.y;
+				input_event.screen_drag.relative_x = pos.x - curr_pos_elem->value().x;
+				input_event.screen_drag.relative_y = pos.y - curr_pos_elem->value().y;
+				input->parse_input_event(input_event);
+
+				if (index == touch_mouse_index) 
+				{
+					mouse_event.type = InputEvent::MOUSE_MOTION;
+					mouse_event.mouse_motion.x = pos.x;
+					mouse_event.mouse_motion.y = pos.y;
+					mouse_event.mouse_motion.global_x = pos.x;
+					mouse_event.mouse_motion.global_y = pos.y;
+					input->set_mouse_pos(pos);
+					mouse_event.mouse_motion.relative_x = pos.x - last_mouse_pos.x;
+					mouse_event.mouse_motion.relative_y = pos.y - last_mouse_pos.y;
+					last_mouse_pos = pos;
+					input->parse_input_event(mouse_event);
+				}
+
+				curr_pos_elem->value() = pos;
+			}
+		}
+#endif
 	// 	// if (event.type == SDL_MOUSEWHEEL) {
 	// 	// 	last_timestamp = event.wheel.timestamp;
 
@@ -813,7 +942,7 @@ void OS_SDL::process_events() {
 			} else {
 				ievent.key.scancode = (scancode);
 			}
-			//TODO old godot API style
+			
 			input->parse_input_event(ievent);
 			continue;
 			// If we're in text input mode.
@@ -1443,5 +1572,6 @@ OS_SDL::OS_SDL() {
 	minimized = false;
 	// xim_style = 0L;
 	event_id = 0;
+	num_touches = 0;
 	mouse_mode = MOUSE_MODE_VISIBLE;
 }
