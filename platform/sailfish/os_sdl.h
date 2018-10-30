@@ -53,6 +53,7 @@
 #include "servers/spatial_sound/spatial_sound_server_sw.h"
 #include "servers/spatial_sound_2d/spatial_sound_2d_server_sw.h"
 #include <SDL.h>
+#include <audioresource.h>
 
 
 #undef CursorShape
@@ -129,14 +130,16 @@ class OS_SDL : public OS_Unix {
 	JoypadLinux *joypad;
 #endif
 
-#ifdef ALSA_ENABLED
-	AudioDriverALSA driver_alsa;
-#endif
+// #ifdef ALSA_ENABLED
+// 	AudioDriverALSA driver_alsa;
+// #endif
 
 #ifdef PULSEAUDIO_ENABLED
 	AudioDriverPulseAudio driver_pulseaudio;
 #endif
+	audioresource_t* audio_resource;
 
+	AudioDriverDummy driver_dummy;
 	AudioServerSW *audio_server;
 	SampleManagerMallocSW *sample_manager;
 	SpatialSoundServerSW *spatial_sound_server;
@@ -181,7 +184,12 @@ protected:
 
 	bool is_window_maximize_allowed();
 
+
 public:
+	bool is_audio_resource_acquired;
+	void start_audio_driver();
+	void stop_audio_driver();
+
 	virtual String get_name();
 
 	virtual void set_cursor_shape(CursorShape p_shape);

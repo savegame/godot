@@ -1,0 +1,1 @@
+void register_sailfish_exporter();

@@ -27,6 +27,16 @@ def can_build():
         print("SDL2 not found.. Sailfish SDL2 disabled.")
         return False
 
+    ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
+    if(ar_error):
+        print("libaudioresource-devel not found. Install libaudioresource-devel on your target in MerSDK")
+        return False;
+
+    ar_error = os.system("pkg-config glib-2.0 --modversion > /dev/null")
+    if(ar_error):
+        print("glib2-devel not found. Install glib2-devel on your target in MerSDK")
+        return False;
+
     return True
 
 def get_opts():
@@ -41,7 +51,8 @@ def get_opts():
         BoolVariable('udev', 'Use udev for gamepad connection callbacks', 'no'),
         EnumVariable('debug_symbols', 'Add debug symbols to release version', 'yes', ('yes', 'no', 'full')),
         BoolVariable('separate_debug_symbols', 'Create a separate file with the debug symbols', 'no'),
-        BoolVariable('touch', 'Enable touch events', 'yes'),
+        BoolVariable('touch', 'Enable touch events', 'yes')
+        #BoolVariable('tools', 'Build with Godot editor', 'no')
     ]
 
 
@@ -62,6 +73,7 @@ def configure(env):
     if (env["target"] == "release"):
         # -O3 -ffast-math is identical to -Ofast. We need to split it out so we can selectively disable
         # -ffast-math in code for which it generates wrong results.
+        env["debug_symbols"] = 'no'
         env.Prepend(CCFLAGS=['-O3', '-ffast-math'])
         if (env["debug_symbols"] == "yes"):
             env.Prepend(CCFLAGS=['-g1'])
@@ -125,6 +137,8 @@ def configure(env):
     ## Dependencies
 
     env.ParseConfig('pkg-config sdl2 --cflags --libs')
+    env.ParseConfig("pkg-config audioresource --cflags --libs")
+    env.ParseConfig("pkg-config glib-2.0 --cflags --libs")
 
     if (env['touch'] == "yes" ):
         env.Append(CPPFLAGS=['-DTOUCH_ENABLED'])

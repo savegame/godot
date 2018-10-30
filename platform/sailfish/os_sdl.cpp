@@ -28,6 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
+#include <glib.h>
 #include "os_sdl.h"
 #include "core/string_db.h"
 #include "drivers/gles2/rasterizer_gles2.h"
@@ -71,6 +72,8 @@
 #endif
 
 #undef CursorShape
+
+static void on_audio_resource_acquired(audioresource_t*, bool, void*);
 
 int OS_SDL::get_video_driver_count() const {
 	return 1;
@@ -166,10 +169,25 @@ void OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 
 	AudioDriverManagerSW::get_driver(p_audio_driver)->set_singleton();
 
-	if (AudioDriverManagerSW::get_driver(p_audio_driver)->init() != OK) {
+	audio_resource  = audioresource_init(
+		AUDIO_RESOURCE_GAME,
+		on_audio_resource_acquired,
+		this
+	);
+	audioresource_acquire(audio_resource);
 
-		ERR_PRINT("Initializing audio failed.");
+	while (!this->is_audio_resource_acquired) {
+		print_line("wait libaudioresource initialization");       
+		g_main_context_iteration(NULL, false);
+		// process_events();
+		// force_process_input();
 	}
+
+	OS::get_singleton()->print("AudioDriver %i\n", p_audio_driver);
+	// if (AudioDriverManagerSW::get_driver(p_audio_driver)->init() != OK) 
+	// {
+	// 	ERR_PRINT("Initializing audio failed.");
+	// }
 
 	sample_manager = memnew(SampleManagerMallocSW);
 	audio_server = memnew(AudioServerSW(sample_manager));
@@ -216,6 +234,14 @@ void OS_SDL::finalize() {
 	memdelete(spatial_sound_server);
 	spatial_sound_2d_server->finish();
 	memdelete(spatial_sound_2d_server);
+
+	for( int i = 0; i < get_audio_driver_count(); i++ )
+	{
+		AudioDriverManagerSW::get_driver(i)->finish();
+	}
+
+	audioresource_release(audio_resource);
+	audioresource_free(audio_resource);
 
 #ifdef JOYDEV_ENABLED
 	memdelete(joypad);
@@ -1559,19 +1585,59 @@ OS::LatinKeyboardVariant OS_SDL::get_latin_keyboard_variant() const {
 	return LATIN_KEYBOARD_QWERTY;
 }
 
-OS_SDL::OS_SDL() {
-
+OS_SDL::OS_SDL() 
+{
 #ifdef PULSEAUDIO_ENABLED
 	AudioDriverManagerSW::add_driver(&driver_pulseaudio);
 #endif
 
-#ifdef ALSA_ENABLED
-	AudioDriverManagerSW::add_driver(&driver_alsa);
-#endif
+// #ifdef ALSA_ENABLED
+// 	AudioDriverManagerSW::add_driver(&driver_alsa);
+// #endif
+
+	if ( AudioDriverManagerSW::get_driver_count() == 0 ) 
+	{
+		WARN_PRINT("Nosound driver found... set default dummy audio driver. ");
+		AudioDriverManagerSW::add_driver(&driver_dummy);
+	}
 
 	minimized = false;
 	// xim_style = 0L;
 	event_id = 0;
 	num_touches = 0;
 	mouse_mode = MOUSE_MODE_VISIBLE;
+	is_audio_resource_acquired = false;
+	audio_resource = NULL;
+}
+
+void OS_SDL::start_audio_driver() {
+	//if (AudioDriverManager::get_driver(0)->init() != OK) {
+		//ERR_PRINT("Initializing audio failed.");
+	//}
+	if ( AudioDriverManagerSW::get_driver(0)->init() != OK) {
+		ERR_PRINT("Initializing audio failed.");
+	}
+}
+
+void OS_SDL::stop_audio_driver() {
+	for (int i = 0; i < get_audio_driver_count(); i++) {
+		AudioDriverManagerSW::get_driver(i)->finish();
+	}
+}
+
+static void on_audio_resource_acquired(audioresource_t* audio_resource, bool acquired, void* user_data) 
+{
+	//AudioDriver* driver = (AudioDriver*) user_data;
+	OS_SDL* os = (OS_SDL*) user_data;
+
+	if (acquired) {
+		print_line("starting audio driver");
+		// start playback
+		os->is_audio_resource_acquired = true;
+		os->start_audio_driver();
+	} else {
+		print_line("stopping audio driver");
+		// stop playback
+		os->stop_audio_driver();
+	}
 }
