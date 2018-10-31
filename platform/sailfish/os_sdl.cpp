@@ -601,58 +601,50 @@ void OS_SDL::process_events() {
 			main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
 			break;
 		}
+
 		if (event.type == SDL_WINDOWEVENT) {
 			if(OS::get_singleton()->is_stdout_verbose())
 			{
-				OS::get_singleton()->print("SDL_WINDOWEVENT (%i)", event.window.event);
+				OS::get_singleton()->print("SDL_WINDOWEVENT (%i)\n", event.window.event);
 				//print_line("SDL_WINDOWEVENT");
 			}
 			switch (event.window.event) {
 				case SDL_WINDOWEVENT_EXPOSED:
 					Main::force_redraw();
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("DL_WINDOWEVENT_EXPOSED");
 					break;
 				case SDL_WINDOWEVENT_MINIMIZED:
 					minimized = true;
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("SDL_WINDOWEVENT_MINIMIZED");
 					break;
 				case SDL_WINDOWEVENT_LEAVE:
 					if (main_loop /*&& !mouse_mode_grab*/)
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_EXIT);
 					// if (input)
 						// input->set_mouse_in_window(false);
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("SDL_WINDOWEVENT_LEAVE");
 					break;
 				case SDL_WINDOWEVENT_ENTER:
 					if (main_loop /*&& !mouse_mode_grab*/)
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
 					// if (input)
 						// input->set_mouse_in_window(true);
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("SDL_WINDOWEVENT_ENTER");
 					break;
 				case SDL_WINDOWEVENT_FOCUS_GAINED:
 					minimized = false;
 					window_has_focus = true;
 					main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("SDL_WINDOWEVENT_FOCUS_GAINED");
 					// FIXME: Mot sure if we should handle the mouse grabbing manually or if SDL will handle it. Test.
 					break;
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
 					window_size = get_window_size();
+					if(OS::get_singleton()->is_stdout_verbose())
+					{
+						OS::get_singleton()->print("Old size: %ix%i\n", current_videomode.width, current_videomode.height);
+						OS::get_singleton()->print("New size: %ix%i\n", window_size.x, window_size.y);
+					}
 					current_videomode.width = window_size.x;
 					current_videomode.height = window_size.y;
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("SDL_WINDOWEVENT_SIZE_CHANGED");
 					break;
 				case SDL_WINDOWEVENT_CLOSE:
 					// force_quit = true;
-					if(OS::get_singleton()->is_stdout_verbose())
-						print_line("SDL_WINDOWEVENT_CLOSE");
 					main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
 					break;
 			}
