@@ -603,7 +603,10 @@ void OS_SDL::process_events() {
 		}
 		if (event.type == SDL_WINDOWEVENT) {
 			if(OS::get_singleton()->is_stdout_verbose())
-				print_line("SDL_WINDOWEVENT");
+			{
+				OS::get_singleton()->print("SDL_WINDOWEVENT (%i)", event.window.event);
+				//print_line("SDL_WINDOWEVENT");
+			}
 			switch (event.window.event) {
 				case SDL_WINDOWEVENT_EXPOSED:
 					Main::force_redraw();
@@ -848,7 +851,7 @@ void OS_SDL::process_events() {
 			// ievent.screen_drag.y = event.tfinger.y;
 			// ievent.screen_drag.pressed = true;
 			// input->parse_input_event(ievent);
-			continue;
+			//continue;
 
 			InputEvent input_event;
 			input_event.ID = ++event_id;
@@ -862,8 +865,11 @@ void OS_SDL::process_events() {
 			Point2i pos = Point2i(event.tfinger.x, event.tfinger.y);
 
 			Map<int, Vector2>::Element *curr_pos_elem = touch.state.find(index);
-			if (!curr_pos_elem) // Defensive
+			if (!curr_pos_elem) {// Defensive
+				//if( OS::get_singleton()->is_stdout_verbose() )
+				//	print_line("Cant drag!");
 				break;
+			}
 
 			if (curr_pos_elem->value() != pos) 
 			{
@@ -936,7 +942,7 @@ void OS_SDL::process_events() {
 	// 	// }
 
 		// Outside of text input mode. Events created here won't have unicode mappings.
-		if (event.type == SDL_KEYDOWN /*&& text_edit_mode == SDL_FALSE*/) 
+		if (event.type == SDL_KEYDOWN & text_edit_mode == SDL_FALSE) 
 		{
 			if(OS::get_singleton()->is_stdout_verbose())
 				print_line("SDL_KEYDOWN");
@@ -973,50 +979,58 @@ void OS_SDL::process_events() {
 			continue;
 			// If we're in text input mode.
 		} 
-		// else if (text_edit_mode == SDL_TRUE) {
-		// 	SDL_Keysym keysym = event.key.keysym;
-		// 	SDL_Keycode keycode = keysym.sym;
+		else if (text_edit_mode == SDL_TRUE) {
+		 	SDL_Keysym keysym = event.key.keysym;
+		 	SDL_Keycode keycode = keysym.sym;
 
-		// 	unsigned int non_printable_keycode = KeyMappingSDL::get_non_printable_keycode(keycode);
+		 	unsigned int non_printable_keycode = KeyMappingSDL::get_non_printable_keycode(keycode);
 
-		// 	// If a modifier / non-printable key is hit, handle that directly
-		// 	if (non_printable_keycode != 0) {
-		// 		Ref<InputEventKey> k;
-		// 		k.instance();
-		// 		k->mod = get_key_modifier_state(0);
-		// 		k->pressed = (event.key.state == SDL_PRESSED);
-		// 		k->scancode = (non_printable_keycode);
-		// 		k->echo = (event.key.repeat > 0);
-		// 		//TODO old godot API style
-		// 		// input->parse_input_event(k);
-		// 		continue;
-		// 		// Otherwise wait until TextInput events to emit the key event with unicode.
-		// 	} else {
-		// 		current_scancode = keysym.scancode;
-		// 		current_echo = event.key.repeat > 0;
-		// 	}
-		// }
+		 	// If a modifier / non-printable key is hit, handle that directly
+		 	if (non_printable_keycode != 0) {
+		 		//Ref<InputEventKey> k;
+		 		//k.instance();
+				InputEvent input_event;
+				input_event.ID = ++event_id;
+				input_event.device = 0;
+				input_event.type = InputEvent::KEY;
 
-		// if (event.type == SDL_TEXTINPUT && text_edit_mode == SDL_TRUE) {
-		// 	last_timestamp = event.text.timestamp;
+		 		input_event.key.mod = get_key_modifier_state(0);
+		 		input_event.key.pressed = (event.key.state == SDL_PRESSED);
+		 		input_event.key.scancode = (non_printable_keycode);
+		 		input_event.key.echo = (event.key.repeat > 0);
+		 		//TODO old godot API style
+		 		input->parse_input_event(input_event);
+		 		continue;
+		 		// Otherwise wait until TextInput events to emit the key event with unicode.
+		 	} else {
+		 		current_scancode = keysym.scancode;
+		 		current_echo = event.key.repeat > 0;
+		 	}
+		 }
 
-		// 	String tmp;
-		// 	tmp.parse_utf8(event.text.text);
-		// 	for (int i = 0; i < tmp.length(); i++) {
-		// 		if (tmp[i] == 0) continue;
+		 if (event.type == SDL_TEXTINPUT && text_edit_mode == SDL_TRUE) {
+		 	last_timestamp = event.text.timestamp;
 
-		// 		Ref<InputEventKey> k;
-		// 		k.instance();
-		// 		k->mod = get_key_modifier_state(0);
-		// 		k->set_unicode(tmp[i]);
-		// 		k->set_pressed(true);
-		// 		if (current_scancode) k->set_scancode(current_scancode);
-		// 		k->set_echo(current_echo);
+		 	String tmp;
+		 	tmp.parse_utf8(event.text.text);
+		 	for (int i = 0; i < tmp.length(); i++) {
+		 		if (tmp[i] == 0) continue;
 
-		// 		input->parse_input_event(k);
-		// 		continue;
-		// 	}
-		// }
+		 		InputEvent input_event;
+				input_event.ID = ++event_id;
+				input_event.device = 0;
+				input_event.type = InputEvent::KEY;
+		 		input_event.key.mod = get_key_modifier_state(0);
+		 		input_event.key.unicode = tmp[i];
+		 		input_event.key.pressed =true;
+		 		if (current_scancode) 
+					input_event.key.scancode = current_scancode;
+		 		input_event.key.echo =current_echo;
+
+		 		input->parse_input_event(input_event);
+		 		continue;
+		 	}
+		 }
 
 		if (event.type == SDL_KEYUP) {
 			if(OS::get_singleton()->is_stdout_verbose())
