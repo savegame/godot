@@ -176,14 +176,16 @@ void OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 	);
 	audioresource_acquire(audio_resource);
 
+	OS::get_singleton()->print("Wait libaudioresource initialization ");       
 	while (!this->is_audio_resource_acquired) {
-		print_line("wait libaudioresource initialization");       
+		OS::get_singleton()->print(".");
 		g_main_context_iteration(NULL, false);
 		// process_events();
 		// force_process_input();
 	}
+	OS::get_singleton()->print("\nlibaudioresource initialization finished.\n");
 
-	OS::get_singleton()->print("AudioDriver %i\n", p_audio_driver);
+	// OS::get_singleton()->print("AudioDriver %i\n", p_audio_driver);
 	// if (AudioDriverManagerSW::get_driver(p_audio_driver)->init() != OK) 
 	// {
 	// 	ERR_PRINT("Initializing audio failed.");
@@ -654,8 +656,8 @@ void OS_SDL::process_events() {
 
 		if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) 
 		{
-			if(OS::get_singleton()->is_stdout_verbose())
-				print_line("SDL_MOUESBUTTONDOWN/UP");
+			// if(OS::get_singleton()->is_stdout_verbose())
+			// 	print_line("SDL_MOUESBUTTONDOWN/UP");
 			/* exit in case of a mouse button press */
 			last_timestamp = event.button.timestamp;
 			if (mouse_mode == MOUSE_MODE_CAPTURED) {
@@ -697,8 +699,8 @@ void OS_SDL::process_events() {
 
 		// Ahh, good ol' abstractions. :3
 		if (event.type == SDL_MOUSEMOTION) {
-			if(OS::get_singleton()->is_stdout_verbose())
-				print_line("SDL_MOUSEMOTION");
+			// if(OS::get_singleton()->is_stdout_verbose())
+			// 	print_line("SDL_MOUSEMOTION");
 			last_timestamp = event.motion.timestamp;
 
 			InputEvent ievent;
@@ -741,32 +743,8 @@ void OS_SDL::process_events() {
 #if defined(TOUCH_ENABLED)
 		if( event.type ==  SDL_FINGERDOWN || event.type == SDL_FINGERUP )
 		{
-			// bool is_begin = event.type ==  SDL_FINGERDOWN;
-
-			if(OS::get_singleton()->is_stdout_verbose())
-				print_line("SDL_FINGERDOW | SDL_FINGERUP");
-			// InputEvent ievent;
-			// ievent.ID = ++event_id;
-			// ievent.device = 0;
-
-			// // emulate mouse events on touch screens
-
-			// InputEvent mouse_event;
-			// mouse_event.ID = ++event_id;
-			// mouse_event.device = 0;
-
-			// ievent.type = InputEvent::SCREEN_TOUCH;
-			// ievent.screen_touch.index = event.tfinger.fingerId;
-			// ievent.screen_touch.x = event.tfinger.x;
-			// ievent.screen_touch.y = event.tfinger.y;
-			// ievent.screen_touch.pressed = is_begin;
-
-
-			// // ievent.screen_touch.state[event.tfinger.fingerId] = 
-
-			// input->parse_input_event(ievent);
-			// continue;
-			//---------------------------------------------------------------
+			// if(OS::get_singleton()->is_stdout_verbose())
+			// 	print_line("SDL_FINGERDOW | SDL_FINGERUP");
 			InputEvent input_event;
 			input_event.ID = ++event_id;
 			input_event.device = 0;
@@ -832,18 +810,8 @@ void OS_SDL::process_events() {
 
 		if( event.type ==  SDL_FINGERMOTION )
 		{
-			if(OS::get_singleton()->is_stdout_verbose())
-				print_line("SDL_FINGERMOTION");
-			// InputEvent ievent;
-			// ievent.type = InputEvent::SCREEN_DRAG;
-			// ievent.ID = ++event_id;
-			// ievent.device = 0;
-			// ievent.screen_drag.index = event.tfinger.fingerId;
-			// ievent.screen_drag.x = event.tfinger.x;
-			// ievent.screen_drag.y = event.tfinger.y;
-			// ievent.screen_drag.pressed = true;
-			// input->parse_input_event(ievent);
-			//continue;
+			// if(OS::get_singleton()->is_stdout_verbose())
+				// print_line("SDL_FINGERMOTION");
 
 			InputEvent input_event;
 			input_event.ID = ++event_id;
@@ -857,11 +825,12 @@ void OS_SDL::process_events() {
 			Point2i pos = Point2i(event.tfinger.x, event.tfinger.y);
 
 			Map<int, Vector2>::Element *curr_pos_elem = touch.state.find(index);
-			if (!curr_pos_elem) {// Defensive
+			if (!curr_pos_elem) 
+			// {// Defensive
 				//if( OS::get_singleton()->is_stdout_verbose() )
 				//	print_line("Cant drag!");
 				break;
-			}
+			// }
 
 			if (curr_pos_elem->value() != pos) 
 			{
