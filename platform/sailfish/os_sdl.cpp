@@ -1341,6 +1341,10 @@ void OS_SDL::swap_buffers() {
 	context_gl->swap_buffers();
 }
 
+bool OS_SDL::has_touchscreen_ui_hint() const {
+	return true;
+}
+
 void OS_SDL::alert(const String &p_alert, const String &p_title) {
 
 	const char *alert = p_alert.utf8().get_data();
