@@ -218,7 +218,7 @@ public:
 	virtual void swap_buffers();
 	virtual bool has_touchscreen_ui_hint() const;
 
-	virtual String get_confi˜g_path() const;
+	virtual String get_config_path() const;
 	virtual String get_data_path() const;
 	virtual String get_cache_path() const;
 
