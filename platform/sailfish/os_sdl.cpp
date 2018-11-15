@@ -607,35 +607,54 @@ void OS_SDL::process_events() {
 		if (event.type == SDL_WINDOWEVENT) {
 			if(OS::get_singleton()->is_stdout_verbose())
 			{
-				OS::get_singleton()->print("SDL_WINDOWEVENT (%i)\n", event.window.event);
+				OS::get_singleton()->print("SDL_WINDOWEVENT: ");
 				//print_line("SDL_WINDOWEVENT");
 			}
 			switch (event.window.event) {
 				case SDL_WINDOWEVENT_EXPOSED:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_EXPOSED\n");
+					if ( main_loop )
+						main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
 					Main::force_redraw();
 					break;
 				case SDL_WINDOWEVENT_MINIMIZED:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_MINIMIZED\n");
+					if ( main_loop )
+						main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_OUT);
 					minimized = true;
 					break;
 				case SDL_WINDOWEVENT_LEAVE:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_LEAVE\n");
 					if (main_loop /*&& !mouse_mode_grab*/)
+					{
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_EXIT);
+						main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_OUT);
+					}
 					// if (input)
 						// input->set_mouse_in_window(false);
 					break;
 				case SDL_WINDOWEVENT_ENTER:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_ENTER\n");
 					if (main_loop /*&& !mouse_mode_grab*/)
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
 					// if (input)
 						// input->set_mouse_in_window(true);
 					break;
 				case SDL_WINDOWEVENT_FOCUS_GAINED:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_FOCUS_GAINED\n");
 					minimized = false;
 					window_has_focus = true;
 					main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
 					// FIXME: Mot sure if we should handle the mouse grabbing manually or if SDL will handle it. Test.
 					break;
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_SIZE_CHANGED\n");
 					window_size = get_window_size();
 					if(OS::get_singleton()->is_stdout_verbose())
 					{

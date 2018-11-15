@@ -6,7 +6,11 @@
 	],
 	"settings": {
 		"files.associations": {
-			"*.tcc": "cpp"
+			"*.tcc": "cpp",
+			"ios": "cpp",
+			"locale": "cpp",
+			"string": "cpp",
+			"system_error": "cpp"
 		}
 	}
 }
