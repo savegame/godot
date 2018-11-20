@@ -250,6 +250,8 @@ public:
 	virtual bool is_window_maximized() const;
 	virtual void request_attention();
 
+	virtual void set_screen_orientation(ScreenOrientation p_orientation);
+
 	virtual void set_borderless_window(bool p_borderless);
 	virtual bool get_borderless_window();
 	virtual void set_ime_position(const Point2 &p_pos);

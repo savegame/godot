@@ -554,6 +554,12 @@ bool OS_SDL::get_borderless_window() {
 void OS_SDL::request_attention() {
 }
 
+void OS_SDL::set_screen_orientation(ScreenOrientation p_orientation)
+{
+	_orientation = p_orientation;
+	// TODO set screen orientation in qt_extended_surface 
+}
+
 InputModifierState OS_SDL::get_key_modifier_state(unsigned int state) {
 	SDL_Keymod mod_state = SDL_GetModState();
 	InputModifierState result;
