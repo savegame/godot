@@ -149,13 +149,13 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 
 	context_gl->set_use_vsync(current_videomode.use_vsync);
 
-	//#endif
 	visual_server = memnew(VisualServerRaster);
 
 	if (get_render_thread_mode() != RENDER_THREAD_UNSAFE) {
 
 		visual_server = memnew(VisualServerWrapMT(visual_server, get_render_thread_mode() == RENDER_SEPARATE_THREAD));
 	}
+
 	// if (current_videomode.maximized) {
 	// 	current_videomode.maximized = false;
 	// 	set_window_maximized(true);
@@ -605,8 +605,10 @@ void OS_SDL::process_events() {
 						input->set_mouse_in_window(false);
 					break;
 				case SDL_WINDOWEVENT_ENTER:
+
 					if(OS::get_singleton()->is_stdout_verbose())
 						OS::get_singleton()->print("SDL_WINDOWEVENT_ENTER;\n");
+
 					if (main_loop && !mouse_mode_grab)
 						main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
 					if (input)
@@ -615,6 +617,7 @@ void OS_SDL::process_events() {
 				case SDL_WINDOWEVENT_FOCUS_GAINED:
 					if(OS::get_singleton()->is_stdout_verbose())
 						OS::get_singleton()->print("SDL_WINDOWEVENT_FOCUS_GAINED;\n");
+
 					minimized = false;
 					window_has_focus = true;
 					main_loop->notification(MainLoop::NOTIFICATION_WM_FOCUS_IN);
@@ -623,6 +626,7 @@ void OS_SDL::process_events() {
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
 					if(OS::get_singleton()->is_stdout_verbose())
 						OS::get_singleton()->print("SDL_WINDOWEVENT_SIZE_CHANGED;\n");
+
 					window_size = get_window_size();
 					current_videomode.width = window_size.x;
 					current_videomode.height = window_size.y;
@@ -1320,7 +1324,7 @@ void OS_SDL::run() {
 
 		process_events(); // get rid of pending events
 #ifdef JOYDEV_ENABLED
-		// joypad->process_joypads();
+		joypad->process_joypads();
 #endif
 		if (Main::iteration() == true)
 			break;
@@ -1504,7 +1508,7 @@ void OS_SDL::start_audio_driver()
 	// if ( AudioDriverManager::get_driver(0)->init() != OK) {
 	// 	ERR_PRINT("Initializing audio failed.");
 	// }
-	AudioDriverManager::initialize(-1);
+	AudioDriverManager::initialize(0);
 }
 
 void OS_SDL::stop_audio_driver() {
@@ -1519,12 +1523,13 @@ static void on_audio_resource_acquired(audioresource_t* audio_resource, bool acq
 	OS_SDL* os = (OS_SDL*) user_data;
 
 	if (acquired) {
-		print_line("\nAudiorRsource initialization finished.\n");
+		print_line("\nAudiorResource initialization finished.\n");
+		print_line("Starting audio driver\n");
 		// start playback
 		os->is_audio_resource_acquired = true;
 		os->start_audio_driver();
 	} else {
-		print_line("stopping audio driver");
+		print_line("stopping audio driver\n");
 		// stop playback
 		os->stop_audio_driver();
 	}
