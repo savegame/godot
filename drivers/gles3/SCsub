@@ -2,10 +2,6 @@
 
 Import('env')
 
-<<<<<<< HEAD
 if env["platform"] != "sailfish" and env["platform"] != "sailfish_qt":
-=======
-if env["platform"] != "sailfish" :
->>>>>>> 1e1ba24904bd7252921f175281ced487ca1088b7
     env.add_source_files(env.drivers_sources,"*.cpp")
     SConscript("shaders/SCsub")
