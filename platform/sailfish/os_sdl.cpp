@@ -556,7 +556,7 @@ void OS_SDL::request_attention() {
 
 void OS_SDL::set_screen_orientation(ScreenOrientation p_orientation)
 {
-	_orientation = p_orientation;
+	OS::get_singleton()->set_screen_orientation(OS::ScreenOrientation(p_orientation));
 	// TODO set screen orientation in qt_extended_surface 
 }
 
