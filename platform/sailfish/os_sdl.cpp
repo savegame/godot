@@ -237,10 +237,7 @@ void OS_SDL::finalize() {
 	spatial_sound_2d_server->finish();
 	memdelete(spatial_sound_2d_server);
 
-	for( int i = 0; i < get_audio_driver_count(); i++ )
-	{
-		AudioDriverManagerSW::get_driver(i)->finish();
-	}
+	stop_audio_driver();
 
 	audioresource_release(audio_resource);
 	audioresource_free(audio_resource);
@@ -605,15 +602,15 @@ void OS_SDL::process_events() {
 		{
 			if(OS::get_singleton()->is_stdout_verbose())
 				print_line("SDL_QUIT");
-			force_quit = true;
+			//force_quit = true;
 			main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
-			break;
+			//break;
 		}
 
 		if (event.type == SDL_WINDOWEVENT) {
 			if(OS::get_singleton()->is_stdout_verbose())
 			{
-				OS::get_singleton()->print("SDL_WINDOWEVENT: ");
+				OS::get_singleton()->print("SDL_WINDOWEVENT (%i): ", event.window.event);
 				//print_line("SDL_WINDOWEVENT");
 			}
 			switch (event.window.event) {
@@ -671,6 +668,8 @@ void OS_SDL::process_events() {
 					current_videomode.height = window_size.y;
 					break;
 				case SDL_WINDOWEVENT_CLOSE:
+					if(OS::get_singleton()->is_stdout_verbose())
+						OS::get_singleton()->print("SDL_WINDOWEVENT_CLOSE\n");
 					// force_quit = true;
 					main_loop->notification(MainLoop::NOTIFICATION_WM_QUIT_REQUEST);
 					break;
@@ -1642,6 +1641,7 @@ static void on_audio_resource_acquired(audioresource_t* audio_resource, bool acq
 	} else {
 		print_line("stopping audio driver");
 		// stop playback
+		os->is_audio_resource_acquired = false;
 		os->stop_audio_driver();
 	}
 }
