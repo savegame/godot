@@ -137,8 +137,11 @@ def configure(env):
     ## Dependencies
 
     env.ParseConfig('pkg-config sdl2 --cflags --libs')
+    print("Enabling SDL2.")
     env.ParseConfig("pkg-config audioresource --cflags --libs")
+    print("Enabling libaudioresource.")
     env.ParseConfig("pkg-config glib-2.0 --cflags --libs")
+    print("Enabling glib-2.0.")
 
     if (env['touch'] == "yes" ):
         env.Append(CPPFLAGS=['-DTOUCH_ENABLED'])
@@ -218,12 +221,12 @@ def configure(env):
 
     ## Flags
 
-    if (os.system("pkg-config --exists alsa") == 0): # 0 means found
-        print("Enabling ALSA")
-        env.Append(CPPFLAGS=["-DALSA_ENABLED"])
-        env.ParseConfig('pkg-config alsa --cflags --libs')
-    else:
-        print("ALSA libraries not found, disabling driver")
+    # if (os.system("pkg-config --exists alsa") == 0): # 0 means found
+    #     print("Enabling ALSA")
+    #     env.Append(CPPFLAGS=["-DALSA_ENABLED"])
+    #     env.ParseConfig('pkg-config alsa --cflags --libs')
+    # else:
+    #     print("ALSA libraries not found, disabling driver")
 
     if ( env['pulseaudio'] == "yes" ):
         if (os.system("pkg-config --exists libpulse-simple") == 0): # 0 means found

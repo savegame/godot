@@ -69,10 +69,9 @@ Error ContextGL_SDL::initialize() {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-	//	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 	//}//
 
-	//sdl_window = SDL_CreateWindow("Godot", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, OS::get_singleton()->get_video_mode().width, OS::get_singleton()->get_video_mode().height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 	SDL_DisplayMode dm;
 	SDL_GetCurrentDisplayMode(0, &dm);
 
@@ -92,6 +91,12 @@ Error ContextGL_SDL::initialize() {
 		ERR_EXPLAIN("Could not obtain an OpenGL ES 2.0 context!");
 		ERR_FAIL_COND_V(p->gl_context == NULL, ERR_UNCONFIGURED);
 	}
+
+	if( SDL_GetWindowWMInfo(sdl_window,&sdl_wmInfo) != SDL_FALSE )
+	{ // here need get qt_wayland_extensions for orientation
+	}
+	else
+		ERR_EXPLAIN("Could not get SysWMInfo.");
 
 	return OK;
 }

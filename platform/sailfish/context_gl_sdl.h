@@ -42,6 +42,7 @@
 #include "drivers/gl_context/context_gl.h"
 #include "os/os.h"
 #include <SDL.h>
+#include <SDL_syswm.h>
 
 struct ContextGL_SDL_Private;
 
@@ -50,7 +51,8 @@ class ContextGL_SDL : public ContextGL {
 	ContextGL_SDL_Private *p;
 	OS::VideoMode default_video_mode;
 	::SDL_DisplayMode *sdl_display_mode;
-	::SDL_Window *sdl_window;
+	::SDL_Window      *sdl_window;
+	::SDL_SysWMinfo    sdl_wmInfo;
 	bool opengl_3_context;
 	bool use_vsync;
 
