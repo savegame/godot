@@ -1126,6 +1126,7 @@ Size2 OS_X11::get_screen_size(int p_screen) const {
 	if (p_screen >= count) return Size2i(0, 0);
 
 	Size2i size = Point2i(xsi[p_screen].width, xsi[p_screen].height);
+	// size = Size2i(size.height, size.width);
 	XFree(xsi);
 	return size;
 }
