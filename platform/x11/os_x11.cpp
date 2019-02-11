@@ -1190,6 +1190,10 @@ void OS_X11::set_window_position(const Point2 &p_position) {
 }
 
 Size2 OS_X11::get_window_size() const {
+#ifdef SAILFISH_FORCE_LANDSCAPE_TEST
+	//FIXME: Landscape
+	return Size2i(current_videomode.height, current_videomode.width);
+#endif
 	// Use current_videomode width and height instead of XGetWindowAttributes
 	// since right after a XResizeWindow the attributes may not be updated yet
 	return Size2i(current_videomode.width, current_videomode.height);
@@ -1212,6 +1216,8 @@ Size2 OS_X11::get_real_window_size() const {
 		w += extents[0] + extents[1]; // left, right
 		h += extents[2] + extents[3]; // top, bottom
 	}
+	//FIXME: Landscape
+	return Size2(h, w);
 	return Size2(w, h);
 }
 
