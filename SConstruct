@@ -357,7 +357,7 @@ if selected_platform in platform_list:
         all_plus_warnings = ['-Wwrite-strings']
 
         if methods.using_gcc(env):
-            if version[0] >= 7:
+            if version[0] >= 7 and env_base['platform'] != 'sailfish':
                 shadow_local_warning = ['-Wshadow-local']
 
         if (env["warnings"] == 'extra'):
