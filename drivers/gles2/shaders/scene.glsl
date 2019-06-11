@@ -1666,7 +1666,7 @@ FRAGMENT_SHADER_CODE
 
 #ifdef USE_LIGHTMAP_CAPTURE
 	{
-		vec3 cone_dirs[12] = vec3[](
+		vec3 cone_dirs[12] = vec3[12](
 				vec3(0.0, 0.0, 1.0),
 				vec3(0.866025, 0.0, 0.5),
 				vec3(0.267617, 0.823639, 0.5),
