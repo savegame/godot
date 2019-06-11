@@ -1638,7 +1638,7 @@ FRAGMENT_SHADER_CODE
 
 #ifdef USE_LIGHTMAP_CAPTURE
 	{
-		vec3 cone_dirs[12] = vec3[](
+		vec3 cone_dirs[12] = vec3[12](
 				vec3(0.0, 0.0, 1.0),
 				vec3(0.866025, 0.0, 0.5),
 				vec3(0.267617, 0.823639, 0.5),
@@ -1651,9 +1651,9 @@ FRAGMENT_SHADER_CODE
 				vec3(-0.700629, 0.509037, -0.5),
 				vec3(-0.700629, -0.509037, -0.5),
 				vec3(0.267617, -0.823639, -0.5));
-
+				
 		vec3 local_normal = normalize(camera_matrix * vec4(normal, 0.0)).xyz;
-		vec4 captured = vec4(0.0);
+		vec4 captured =vec4(0.0);
 		float sum = 0.0;
 		for (int i = 0; i < 12; i++) {
 			float amount = max(0.0, dot(local_normal, cone_dirs[i])); //not correct, but creates a nice wrap around effect
