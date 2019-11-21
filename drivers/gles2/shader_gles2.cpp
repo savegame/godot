@@ -182,6 +182,10 @@ ShaderGLES2::Version *ShaderGLES2::get_current_version() {
 
 #endif
 
+#ifdef SAILFISH_i486_GLES2
+	strings.push_back("#define USE_SAILFISH_i486_GLES2\n");
+#endif
+
 	int define_line_ofs = 1;
 
 	for (int j = 0; j < conditional_count; j++) {
