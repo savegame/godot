@@ -110,6 +110,9 @@ PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC glFramebufferTexture2DMultisampleEXT
 #include <GLES2/gl2ext.h>
 #define glRenderbufferStorageMultisample glRenderbufferStorageMultisampleANGLE
 #define glFramebufferTexture2DMultisample glFramebufferTexture2DMultisampleANGLE
+#endif
+
+#define GL_MAX_SAMPLES 0x8D57
 #endif //!GLES_OVER_GL
 
 void RasterizerStorageGLES2::bind_quad_array() const {
