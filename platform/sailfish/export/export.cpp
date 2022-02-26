@@ -53,6 +53,8 @@
 #define prop_custom_binary_arm_debug "custom_binary/arm_debug"
 #define prop_custom_binary_x86 "custom_binary/x86"
 #define prop_custom_binary_x86_debug "custom_binary/x86_debug"
+#define prop_custom_binary_aarch64 "custom_binary/arm64"
+#define prop_custom_binary_aarch64_debug "custom_binary/arm64_debug"
 #define prop_version_release "version/release"
 #define prop_version_string "version/string"
 #define prop_package_name "package/name"
@@ -161,6 +163,7 @@ class EditorExportPlatformSailfish : public EditorExportPlatform {
 		arch_armv7hl,
 		arch_i486,
 		arch_x86 = arch_i486,
+		arch_aarch64,
 		arch_unkown
 	};
 
@@ -174,12 +177,14 @@ class EditorExportPlatformSailfish : public EditorExportPlatform {
 		MerTarget() {
 			arch = arch_unkown;
 			name = "SailfishOS";
-			version[0] = 3;
-			version[1] = 2;
-			version[2] = 1;
-			version[3] = 20;
+			target_template = "";
+			version[0] = 4;
+			version[1] = 3;
+			version[2] = 0;
+			version[3] = 12;
 		}
 
+		String target_template;
 		String name;
 		int version[4]; // array of 4 integers
 		TargetArch arch;
@@ -216,7 +221,11 @@ protected:
 			case arch_i486:
 				return "i486";
 				break;
+			case arch_aarch64:
+				return "aarch64";
+				break;
 			default:
+				print_error("Cant use this architecture");
 				return "noarch";
 				break;
 		}
@@ -324,6 +333,7 @@ protected:
 
 		List<String> args;
 		String arm_template;
+		String aarch64_template;
 		String x86_template;
 
 		if (p_debug) {
@@ -351,7 +361,21 @@ protected:
 				print_error("No i486 template setuped");
 			}
 		}
-		if (arm_template.empty() && x86_template.empty()) {
+
+		if (p_debug) {
+			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64_debug));
+			if (aarch64_template.empty()) {
+				print_error("Debug aarch64 template path is empty. Try use release template.");
+			}
+		}
+		if (aarch64_template.empty()) {
+			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64));
+			if (aarch64_template.empty()) {
+				print_error("No aarch64 template setuped");
+			}
+		}
+
+		if (arm_template.empty() && x86_template.empty() && aarch64_template.empty()) {
 			return ERR_CANT_CREATE;
 		}
 
@@ -380,13 +404,54 @@ protected:
 		String &bin_dir_native = bin_dir;
 #endif
 		Error err;
+		bool is_export_path_exits_in_sdk = false;
+		{
+			// check avaliable folders in build engine ( from some SailfishSDK version,
+			// in buildengine has no /home/metsdk/share folder, just /home/username 
+			// folder (in unix systems, with docker) )
+			// that mean, expart path in build engine should be same as on host system
+			// List<String> args;
+			args.clear();
+			String pipe;
+			int exitcode = 0;
+			args.push_back("engine");
+			args.push_back("exec");
+			args.push_back("bash");
+			args.push_back("-c");
+			if ( export_path.find(shared_home) == 0 ) 
+				args.push_back(String("if [ -d \"") + shared_home + String("\" ]; then echo returncode_true; exit 0; else echo returncode_false; exit 1; fi"));
+			else if ( export_path.find(shared_src) == 0 ) 
+				args.push_back(String("if [ -d \"") + shared_src + String("\" ]; then echo returncode_true; exit 0; else echo returncode_false; exit 1; fi"));
+			else 
+				args.push_back(String("if [ -d \"") + export_path + String("\" ]; then echo returncode_true; exit 0; else echo returncode_false; exit 1; fi"));
+
+			err = OS::get_singleton()->execute(sfdk_tool, args, true, nullptr, &pipe, &exitcode, false/*read stderr*/);
+
+			if( err == OK ) {
+				if( exitcode == 0 || String("returncode_true") == pipe )  {
+					print_line("Use export path without any changes, its same in host and in build engine");
+					is_export_path_exits_in_sdk = true;
+				}
+			}
+			else {
+				print_line(pipe);
+			}
+		}
 		if (!shared_home.empty() && export_path.find(shared_home) == 0) {
+			// print_verbose(String("sfdk") + result_string);
+			// String execute_binary = sfdk_tool;
 			export_path_part = export_path.substr(shared_home.length(), export_path.length() - shared_home.length()).replace(separator, "/") + String("_buildroot");
-			sdk_shared_path = String("/home/mersdk/share");
+			if( is_export_path_exits_in_sdk )
+				sdk_shared_path = shared_home;
+			else
+				sdk_shared_path = String("/home/mersdk/share");
 		}
 		else if ( !shared_src.empty() && export_path.find(shared_src) == 0) {
 			export_path_part = export_path.substr(shared_src.length(), export_path.length() - shared_src.length()).replace(separator, "/") + String("_buildroot");
-			sdk_shared_path = String("/home/src1");
+			if( is_export_path_exits_in_sdk )
+				sdk_shared_path = shared_src;
+			else
+				sdk_shared_path = String("/home/src1");
 		}
 		else {
 			print_error(String("Export path outside of SharedHome and SharedSrc:\nSharedHome: ") +shared_home + String("\nSharedSrc: ") + shared_src);
@@ -447,6 +512,22 @@ protected:
 				print_error(String("i486") + debugs + String(" template is empty"));
 				return ERR_CANT_CREATE;
 			}
+		// TODO aarch64
+		} else if (package.target.arch == arch_aarch64) {
+			if (!aarch64_template.empty()) {
+
+				if (broot->copy(aarch64_template, broot_path + build_folder + bin_dir_native + separator + package.name) != Error::OK) {
+
+					print_error(String("Cant copy aarch64 template binary to: ") + broot_path + build_folder + bin_dir_native + separator + package.name);
+					return ERR_CANT_CREATE;
+				}
+			} else {
+
+				String debugs = (p_debug == true) ? String(" debug") : String("");
+				print_error(String("aarch64") + debugs + String(" template is empty"));
+				return ERR_CANT_CREATE;
+			}
+		// TODO aarch64
 		} else {
 
 			print_error("Wrong architecture of package");
@@ -652,6 +733,8 @@ public:
 
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_arm, PROPERTY_HINT_GLOBAL_FILE), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_arm_debug, PROPERTY_HINT_GLOBAL_FILE), ""));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_aarch64, PROPERTY_HINT_GLOBAL_FILE), ""));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_aarch64_debug, PROPERTY_HINT_GLOBAL_FILE), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_x86, PROPERTY_HINT_GLOBAL_FILE), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_x86_debug, PROPERTY_HINT_GLOBAL_FILE), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_prefix, PROPERTY_HINT_ENUM, "/usr,/home/nemo/.local"), "/usr"));
@@ -672,6 +755,7 @@ public:
 	bool can_export(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override {
 		String arm_template;
 		String x86_template;
+		String aarch64_template;
 		Error err;
 		bool p_debug = false;
 
@@ -683,7 +767,7 @@ public:
 			sdk_tool = SDKConnectType::tool_ssh;
 
 		if (driver == "GLES3") {
-			print_error(TTR("SailfishOS dont support GLES3"));
+			print_line(TTR("SailfishOS earler than 4.2 dont support GLES3"));
 			//return false;
 		}
 
@@ -697,22 +781,28 @@ public:
 		else
 			x86_template = String(p_preset->get(prop_custom_binary_x86));
 
+		if (p_debug)
+			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64_debug));
+		else
+			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64));
+
 		print_verbose( String("arm_binary: ") + arm_template );
 		print_verbose( String("x86_binary: ") + x86_template );
+		print_verbose( String("aarch64_binary: ") + aarch64_template );
 
-		if (arm_template.empty() && x86_template.empty()) {
+		if (arm_template.empty() && x86_template.empty() && aarch64_template.empty() ) {
 			r_error = TTR("Cant export without SailfishOS export templates");
 			r_missing_templates = true;
 			return false;
 		} else {
-			bool one_tamplate = false;
+			bool has_tamplate = false;
 			if (!arm_template.empty()) {
 				FileAccessRef template_file = FileAccess::open(arm_template, FileAccess::READ, &err);
 				if (err != Error::OK) {
 					arm_template.clear();
 				} else {
 					//                    template_file->get_
-					one_tamplate = true;
+					has_tamplate = true;
 				}
 			}
 
@@ -721,9 +811,18 @@ public:
 				if (err != Error::OK) {
 					x86_template.clear();
 				} else
-					one_tamplate = true;
+					has_tamplate = true;
 			}
-			if (!one_tamplate) {
+
+			if (!aarch64_template.empty()) {
+				FileAccessRef template_file = FileAccess::open(aarch64_template, FileAccess::READ, &err);
+				if (err != Error::OK) {
+					aarch64_template.clear();
+				} else
+					has_tamplate = true;
+			}
+			
+			if (!has_tamplate) {
 				r_error = TTR("Template files not exists\n");
 				return false;
 			}
@@ -946,6 +1045,7 @@ public:
 		//        String mer_sdk_tools;
 		List<MerTarget> mer_target; // Mer targets list
 		String arm_template;
+		String aarch64_template;
 		String x86_template;
 
 		ep.step("checking export template binaries.", 5);
@@ -959,7 +1059,20 @@ public:
 		if (arm_template.empty()) {
 			arm_template = String(p_preset->get(prop_custom_binary_arm));
 			if (arm_template.empty()) {
-				print_error("No arm template setuped");
+				print_error("No armv7hl template setuped");
+			}
+		}
+
+		if (p_debug) {
+			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64_debug));
+			if (aarch64_template.empty()) {
+				print_error("Debug aarch64 template path is empty. Try use release template.");
+			}
+		}
+		if (aarch64_template.empty()) {
+			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64));
+			if (aarch64_template.empty()) {
+				print_error("No aarch64 template setuped");
 			}
 		}
 
@@ -975,7 +1088,7 @@ public:
 				print_error("No i486 template setuped");
 			}
 		}
-		if (arm_template.empty() && x86_template.empty()) {
+		if (arm_template.empty() && aarch64_template.empty() && x86_template.empty()) {
 			return ERR_CANT_CREATE;
 		}
 
@@ -1027,7 +1140,7 @@ public:
 			while (e) {
 				String entry = e->get();
 				print_verbose(entry);
-				RegEx regex(".*SailfishOS-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)-(armv7hl|i486).*");
+				RegEx regex(".*SailfishOS-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)-(armv7hl|i486|aarch64).*");
 				Array matches = regex.search_all(entry);
 				// print_verbose( String("Matches size: ") + Variant(matches.size()) );
 				for (int mi = 0; mi < matches.size(); mi++) {
@@ -1049,8 +1162,13 @@ public:
 
 						if (names[5] == String("armv7hl")) {
 							target.arch = arch_armv7hl;
+							target.target_template = arm_template;
 						} else if (names[5] == String("i486")) {
 							target.arch = arch_i486;
+							target.target_template = x86_template;
+						} else if (names[5] == String("aarch64")) {
+							target.arch = arch_aarch64;
+							target.target_template = aarch64_template;
 						} else
 							target.arch = arch_unkown;
 
@@ -1119,6 +1237,11 @@ public:
 				pack.version = p_preset->get(prop_version_string);
 				// TODO arch should be generated from current MerTarget
 				pack.target = it->get();
+
+				if( pack.target.target_template.empty() ) {
+					print_error(String("Target ") + mertarget_to_text(it->get()) + String(" template path is empty. Skip"));
+					continue;
+				}
 
 				if (build_package(pack, p_preset, p_debug, sfdk_tool, ep, 20 + one_target_progress_length * target_num, one_target_progress_length) != Error::OK) {
 					// TODO Warning mesasgebox
@@ -1194,3 +1317,5 @@ void register_sailfish_exporter() {
 	//r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_prefix, PROPERTY_HINT_ENUM, "/usr,/home/nemo/.local"), "/usr"));
 	EditorExport::get_singleton()->add_export_platform(platform);
 }
+
+ 
