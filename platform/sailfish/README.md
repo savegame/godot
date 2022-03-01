@@ -1,8 +1,8 @@
-### install SailfishSDK 
+## install SailfishSDK 
 1. Download and install [SailfishSDK](https://sailfishos.org/wiki/Application_SDK)
 2. (optional) Install docker image, use [this instcruction](https://github.com/CODeRUS/docker-sailfishos-sdk-local) from @CODeRUS
 
-### Add SailfishSDK/bin folder to PATH for using sfdk
+## Add SailfishSDK/bin folder to PATH for using sfdk
 ```shell
 export PATH=$HOME/SailfishSDK/bin:${PATH} 
 ```
@@ -15,7 +15,7 @@ or, you can use absolute path to **sfdk**
 ~/SailfishOS/bin/sfdk engine exec echo "Hello from SailfishOS SDK build engine"
 ```
 
-#### Install dependencies in SailfishSDK targets
+### Install dependencies in SailfishSDK targets
 check list of targets
 ```shell
 sfdk engine exec sb2-config -l
@@ -47,12 +47,12 @@ sfdk engine exec sb2 -t SailfishOS-4.3.0.12-i486 -R zypper in -y SDL2-devel libg
 sfdk engine exec sb2 -t SailfishOS-4.3.0.12-aarch64 -R zypper in -y SDL2-devel libgudev-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
 ```
 
-or by **oneline** script for all targets in same time ;) :
+or by **one line** script for all targets in same time ;) :
 ```shell
 for each in `sfdk engine exec sb2-config -l|grep -v default`; do sfdk engine exec sb2 -t $each -R zypper in -y SDL2-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel libgudev-devel scons; done
 ```
 
-### Build Godot export template for Sailfish OS
+## Build Godot export template for Sailfish OS
 Use sfdk from SailfishSDK/bin/sfdk 
 
 ```sh
@@ -69,15 +69,15 @@ sfdk engine exec sb2 -t SailfishOS-4.3.0.12-aarch64 strip bin/godot.sailfish.opt
 sfdk engine exec sb2 -t SailfishOS-4.3.0.12-i486    strip bin/godot.sailfish.opt.x86
 ```
 
-### Build Godot Editor with SailfishOS export menu
-#### build on Linux  X11
+## Build Godot Editor with SailfishOS export menu
+### build on Linux  X11
 ```shell
 scons -j`nproc` arch=x64 platform=x11 tools=yes bits=64 traget=release_debug 
 strip bin/godot.x11.tools.x64
 ```
-#### build for Win64 with cross compile toolkit on Linux
+### build for Win64 with cross compile toolkit on Linux
 First, install cross compile gcc
-##### on ubuntu 
+#### on ubuntu 
 ```
 sudo apt install -y mingw-w64
 ```
@@ -86,11 +86,11 @@ then choose posix compiler, with commands below
 sudo update-alternatives --config x86_64-w64-mingw32-gcc 
 sudo update-alternatives --config x86_64-w64-mingw32-g++
 ```
-##### on fedora (centos)
+#### on fedora (centos)
 ```
 sudo dnf install -y  mingw64-gcc-c++ mingw64-gcc
 ```
-##### build an editor 
+#### build an editor 
 ```shell
 #ubuntu 
 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc scons -j`nproc` arch=x64 platform=windows tools=yes bits=64 traget=release_debug 
