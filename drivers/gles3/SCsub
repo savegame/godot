@@ -2,6 +2,5 @@
 
 Import('env')
 
-if env["platform"] != "sailfish" :
-    env.add_source_files(env.drivers_sources,"*.cpp")
-    SConscript("shaders/SCsub")
+env.add_source_files(env.drivers_sources,"*.cpp")
+SConscript("shaders/SCsub")

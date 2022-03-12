@@ -31,9 +31,9 @@
 #include "core/string_builder.h"
 #include "os_sdl.h"
 // #ifndef GLES2_ENABLED
-// #include "drivers/gles3/rasterizer_gles3.h"
+#include "drivers/gles3/rasterizer_gles3.h"
 // #else
-#include "drivers/gles2/rasterizer_gles2.h"
+// #include "drivers/gles2/rasterizer_gles2.h"
 // #endif
 #include "errno.h"
 #include "key_mapping_sdl.h"
@@ -82,7 +82,7 @@ int OS_SDL::get_video_driver_count() const {
 }
 
 const char *OS_SDL::get_video_driver_name(int p_driver) const {
-	return "GLES2";
+	return "GLES3";
 }
 
 int OS_SDL::get_current_video_driver() const {
@@ -142,9 +142,14 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	}
 	sdl_window = context_gl->get_window_pointer();
 
-	if (RasterizerGLES2::is_viable() == OK) {
-		RasterizerGLES2::register_config();
-		RasterizerGLES2::make_current();
+	if (RasterizerGLES3::is_viable() == OK) {
+		RasterizerGLES3::register_config();
+		RasterizerGLES3::make_current();
+		// driver_name = "GLES3";
+	// } else if (RasterizerGLES2::is_viable() == OK) {
+	// 	RasterizerGLES2::register_config();
+	// 	RasterizerGLES2::make_current();
+	// 	driver_name = "GLES2";
 	} else {
 		ERR_PRINT("GLESv2 initialization error!");
 		return ERR_UNAVAILABLE;
@@ -1040,7 +1045,7 @@ void OS_SDL::process_events() {
 		if (event.type == SDL_DISPLAYEVENT) { // its mean sreen orientation changed
 			//OS::get_singleton()->print("SDL_DisplayEvent.type = %i\n", event.display.event);
 			if (event.display.event == SDL_DISPLAYEVENT_ORIENTATION) { // DISPLAY event tpe
-				if (OS::get_singleton()->is_stdout_verbose())
+				if (OS::get_singleton()->is_stdout_verbose()) {
 					switch (event.display.data1) {
 						case SDL_ORIENTATION_LANDSCAPE:
 							OS::get_singleton()->print("SDL_DisplayOrientation is SDL_ORIENTATION_LANDSCAPE\n");
@@ -1058,6 +1063,7 @@ void OS_SDL::process_events() {
 							OS::get_singleton()->print("SDL_DisplayOrientation is SDL_ORIENTATION_UNKNOWN\n");
 							break;
 					}
+				}
 				context_gl->set_ext_surface_orientation(event.display.data1);
 			}
 			continue;

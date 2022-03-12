@@ -34,22 +34,22 @@ SailfishOS-4.3.0.12-i486
 
 **armv7hl**
 ```sh
-sfdk engine exec sb2 -t SailfishOS-4.3.0.12-armv7hl -R zypper in -y SDL2-devel libgudev-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
+sfdk engine exec sb2 -t SailfishOS-4.3.0.12-armv7hl -R zypper in -y SDL2-devel systemd-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
 ```
 
 **i486**
 ```sh
-sfdk engine exec sb2 -t SailfishOS-4.3.0.12-i486 -R zypper in -y SDL2-devel libgudev-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
+sfdk engine exec sb2 -t SailfishOS-4.3.0.12-i486 -R zypper in -y SDL2-devel systemd-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
 ```
 
 **aarch64**
 ```sh
-sfdk engine exec sb2 -t SailfishOS-4.3.0.12-aarch64 -R zypper in -y SDL2-devel libgudev-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
+sfdk engine exec sb2 -t SailfishOS-4.3.0.12-aarch64 -R zypper in -y SDL2-devel systemd-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel scons
 ```
 
 or by **one line** script for all targets in same time ;) :
 ```shell
-for each in `sfdk engine exec sb2-config -l|grep -v default`; do sfdk engine exec sb2 -t $each -R zypper in -y SDL2-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel libgudev-devel scons; done
+for each in `sfdk engine exec sb2-config -l|grep -v default`; do sfdk engine exec sb2 -t $each -R zypper in -y SDL2-devel libaudioresource-devel pulseaudio-devel openssl-devel libwebp-devel libvpx-devel wayland-devel libpng-devel systemd-devel scons; done
 ```
 
 ## Build Godot export template for Sailfish OS

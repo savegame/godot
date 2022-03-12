@@ -65,16 +65,18 @@ void ContextGL_SDL::swap_buffers() {
 Error ContextGL_SDL::initialize() {
 	mprint_verbose("Begin SDL2 initialization\n");
 
-	//  if (opengl_3_context == true) {
-	//  	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	//  	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	//  } else {
-	// Try OpenGL ES 2.0
-	// SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-	// SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-	// SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-	// SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-	//  }
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	if (opengl_3_context == true) {
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		// SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	} 
+	 else {
+	// // Try OpenGL ES 2.0
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+		// SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	// 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+	// 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+	}
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
@@ -119,7 +121,7 @@ Error ContextGL_SDL::initialize() {
 	p->gl_context = SDL_GL_CreateContext(sdl_window); //SDL_GL_GetCurrentContext();
 	if (p->gl_context == NULL) {
 		// ERR_EXPLAIN("Could not obtain an OpenGL ES 2.0 context!");
-		OS::get_singleton()->print("ERROR: Could not obtain an OpenGL ES 2.0 context!");
+		OS::get_singleton()->print("ERROR: Could not obtain an OpenGL ES 3.0 context!");
 		ERR_FAIL_COND_V(p->gl_context == NULL, ERR_UNCONFIGURED);
 		return FAILED;
 	}
@@ -295,6 +297,7 @@ void ContextGL_SDL::set_screen_orientation(OS::ScreenOrientation p_orientation) 
 
 	if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str(), SDL_HINT_OVERRIDE) == SDL_FALSE) {
 		mprint_verbose("WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events");
+		// OS::get_singleton()->print
 	} else
 		mprint_verbose2("SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION sets to %s\n", p->allowed_orientation_str.c_str());
 #endif
@@ -304,7 +307,7 @@ void ContextGL_SDL::set_screen_orientation(OS::ScreenOrientation p_orientation) 
 ContextGL_SDL::ContextGL_SDL(::SDL_DisplayMode *p_sdl_display_mode, const OS::VideoMode &p_default_video_mode, bool p_opengl_3_context) {
 	default_video_mode = p_default_video_mode;
 	sdl_display_mode = p_sdl_display_mode;
-	opengl_3_context = false; //p_opengl_3_context;
+	opengl_3_context = p_opengl_3_context;
 	p = memnew(ContextGL_SDL_Private);
 	p->gl_context = NULL;
 	use_vsync = false;

@@ -46,10 +46,10 @@ def can_build():
 
     udev_error = os.system("pkg-config libudev --modversion > /dev/null")
     if(udev_error):
-        print("libudev-devel not found. Install libudev-devel for all your targets in MerSDK")
+        print("libudev.pc not found. Install systemd-devel for all your targets in MerSDK")
         return False;
     else:
-        print("libudev-devel is found")
+        print("libudev.pc is found")
 
     # webp_error = os.system("pkg-config libwebp --modversion > /dev/null")
     # if(webp_error):
@@ -59,7 +59,7 @@ def can_build():
     return True
 
 def get_opts():
-    from SCons.Variables import BoolVariable, EnumVariable
+    from SCons.Variables import BoolVariable, EnumVariable, PathVariable
 
     return [
         BoolVariable('use_llvm', 'Use the LLVM compiler', False),
@@ -72,6 +72,8 @@ def get_opts():
         BoolVariable('separate_debug_symbols', 'Create a separate file with the debug symbols', False),
         BoolVariable('touch', 'Enable touch events', True),
         BoolVariable('tools', 'Enable editor tools', False),
+        PathVariable('static_sdl', 'Enable static link of SDL2', ""),
+        PathVariable('sdl_path', 'Custom SDL2 path', "")
     ]
 
 
@@ -155,7 +157,10 @@ def configure(env):
 
     ## Dependencies
     # try use static SDL2
-    env.ParseConfig('pkg-config sdl2 --cflags --libs')
+    if not 'static_sdl' in env or not "sdl_path" in env:
+        env.ParseConfig('pkg-config sdl2 --cflags --libs')
+    else:
+        env.Append(CCFLAGS=["-I" + env["sdl_path"]] )
     env.ParseConfig('pkg-config libudev --cflags --libs')
     #env.Append(LINKFLAGS=['-Lplatform/sailfish/outputsdl/lib/', '-L/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib', '', '-lSDL2'])
     #env.Append(LIBPATH=['/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib'])

@@ -17,6 +17,8 @@ common_sdl = [
     "power_sdl.cpp",
 ]
 
+if 'static_sdl' in env:
+    common_sdl.append(env['static_sdl'])
 prog = env.add_program('#bin/godot', ['godot_sdl.cpp'] + common_sdl)
 
 if (env["debug_symbols"] == "full" or env["debug_symbols"] == "yes") and env["separate_debug_symbols"]:
