@@ -33,7 +33,7 @@
 // #ifndef GLES2_ENABLED
 #include "drivers/gles3/rasterizer_gles3.h"
 // #else
-// #include "drivers/gles2/rasterizer_gles2.h"
+#include "drivers/gles2/rasterizer_gles2.h"
 // #endif
 #include "errno.h"
 #include "key_mapping_sdl.h"
@@ -82,7 +82,13 @@ int OS_SDL::get_video_driver_count() const {
 }
 
 const char *OS_SDL::get_video_driver_name(int p_driver) const {
-	return "GLES3";
+	switch (p_driver) {
+		case VIDEO_DRIVER_GLES3:
+			return "GLES3";
+		case VIDEO_DRIVER_GLES2:
+			return "GLES2";
+	}
+	ERR_FAIL_V_MSG(NULL, "Invalid video driver index: " + itos(p_driver) + ".");
 }
 
 int OS_SDL::get_current_video_driver() const {
@@ -146,10 +152,10 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 		RasterizerGLES3::register_config();
 		RasterizerGLES3::make_current();
 		// driver_name = "GLES3";
-	// } else if (RasterizerGLES2::is_viable() == OK) {
-	// 	RasterizerGLES2::register_config();
-	// 	RasterizerGLES2::make_current();
-	// 	driver_name = "GLES2";
+	} else if (RasterizerGLES2::is_viable() == OK) {
+		RasterizerGLES2::register_config();
+		RasterizerGLES2::make_current();
+		// driver_name = "GLES2";
 	} else {
 		ERR_PRINT("GLESv2 initialization error!");
 		return ERR_UNAVAILABLE;

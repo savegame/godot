@@ -427,12 +427,31 @@ float map_ninepatch_axis(float pixel, float draw_size, float tex_pixel_size, flo
 #endif
 #endif
 
+#ifdef USE_FORCE_LANDSCAPE
+uniform int force_landscape;
+#endif
 uniform bool use_default_normal;
 
 void main() {
 
 	vec4 color = color_interp;
 	vec2 uv = uv_interp;
+
+#ifdef USE_FORCE_LANDSCAPE
+	if (force_landscape != 0) {
+		if (force_landscape == 1) {
+			// reverse landscape
+			uv = vec2(1.0 - uv.y, uv.x);
+		} else if (force_landscape == 2) {
+			// landscape
+			uv = vec2(uv.y, 1.0 - uv.x);
+		} else if (force_landscape == 3) {
+			// reverse portrait
+			uv = vec2(1.0 - uv.x, 1.0 - uv.y);
+		}
+	}
+	// normal portrait - no need modify
+#endif
 
 #ifdef USE_TEXTURE_RECT
 

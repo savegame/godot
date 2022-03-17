@@ -568,7 +568,6 @@ void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *cur
 	Item::Command **commands = p_item->commands.ptrw();
 
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-	// state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_FORCE_LANDSCAPE, false);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::FORCE_LANDSCAPE, 0);
 #endif
 

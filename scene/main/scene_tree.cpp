@@ -1135,10 +1135,13 @@ void SceneTree::_update_root_rect() {
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
 		// landscape orientation
 		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
-				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE)
+				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE) {
+			// root->set_size((Size2(last_screen_size.y, last_screen_size.x) / stretch_shrink).floor());
 			root->set_attach_to_screen_rect(Rect2(Point2(), Size2(last_screen_size.y, last_screen_size.x)));
-		else
+		} else {
+			// root->set_size((last_screen_size / stretch_shrink).floor());
 			root->set_attach_to_screen_rect(Rect2(Point2(), last_screen_size));
+		}
 #else // normal drawing
 		root->set_attach_to_screen_rect(Rect2(Point2(), last_screen_size));
 #endif

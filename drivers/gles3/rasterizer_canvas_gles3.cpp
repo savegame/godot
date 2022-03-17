@@ -177,15 +177,31 @@ void RasterizerCanvasGLES3::canvas_begin() {
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, Color(1, 1, 1, 1));
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, Transform2D());
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, Transform2D());
+
 	if (storage->frame.current_rt) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
 	} else {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0, 1.0));
 	}
 
-	//state.canvas_shader.set_uniform(CanvasShaderGLES3::PROJECTION_MATRIX,state.vp);
-	//state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX,Transform());
-	//state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX,Transform());
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	WARN_PRINT_ONCE("Force landscape enabled");
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_LANDSCAPE, true);
+	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE)
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 1);
+	else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 2);
+	else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_PORTRAIT)
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 3);
+	else
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 0);
+#else
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_LANDSCAPE, false);
+#endif
+
+	// state.canvas_shader.set_uniform(CanvasShaderGLES3::PROJECTION_MATRIX,state.vp);
+	// state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX,Transform());
+	// state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX,Transform());
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, state.canvas_item_ubo);
 	glBindVertexArray(data.canvas_quad_array);
@@ -625,6 +641,10 @@ void RasterizerCanvasGLES3::_canvas_item_render_commands(Item *p_item, Item *cur
 
 	int cc = p_item->commands.size();
 	Item::Command **commands = p_item->commands.ptrw();
+
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 0);
+#endif
 
 	for (int i = 0; i < cc; i++) {
 
@@ -1989,6 +2009,12 @@ void RasterizerCanvasGLES3::reset_canvas() {
 		canvas_transform.scale(Vector3(2.0f / storage->frame.current_rt->width, csy * -2.0f / storage->frame.current_rt->height, 1.0f));
 	} else {
 		Vector2 ssize = OS::get_singleton()->get_window_size();
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
+				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
+				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
+			ssize = Vector2(ssize.y, ssize.x);
+#endif
 		canvas_transform.translate(-(ssize.width / 2.0f), -(ssize.height / 2.0f), 0.0f);
 		canvas_transform.scale(Vector3(2.0f / ssize.width, -2.0f / ssize.height, 1.0f));
 	}
@@ -2050,11 +2076,25 @@ void RasterizerCanvasGLES3::draw_lens_distortion_rect(const Rect2 &p_rect, float
 void RasterizerCanvasGLES3::draw_window_margins(int *black_margin, RID *black_image) {
 
 	Vector2 window_size = OS::get_singleton()->get_window_size();
-	int window_h = window_size.height;
 	int window_w = window_size.width;
+	int window_h = window_size.height;
+
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	// force landscape
+	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
+			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
+			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
+		window_w = window_size.height;
+		window_h = window_size.width;
+	}
+#endif
 
 	glBindFramebuffer(GL_FRAMEBUFFER, RasterizerStorageGLES3::system_fbo);
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	glViewport(0, 0, window_w, window_h);
+#else
 	glViewport(0, 0, window_size.width, window_size.height);
+#endif
 	canvas_begin();
 
 	if (black_image[MARGIN_LEFT].is_valid()) {
