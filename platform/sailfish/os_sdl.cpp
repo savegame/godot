@@ -78,7 +78,7 @@ static void on_audio_resource_acquired(audioresource_t *, bool, void *);
 #endif
 
 int OS_SDL::get_video_driver_count() const {
-	return 1;
+	return 2;
 }
 
 const char *OS_SDL::get_video_driver_name(int p_driver) const {
@@ -148,11 +148,11 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	}
 	sdl_window = context_gl->get_window_pointer();
 
-	if (RasterizerGLES3::is_viable() == OK) {
+	if (p_video_driver == VIDEO_DRIVER_GLES3 && RasterizerGLES3::is_viable() == OK) {
 		RasterizerGLES3::register_config();
 		RasterizerGLES3::make_current();
 		// driver_name = "GLES3";
-	} else if (RasterizerGLES2::is_viable() == OK) {
+	} else if (p_video_driver == VIDEO_DRIVER_GLES2 && RasterizerGLES2::is_viable() == OK) {
 		RasterizerGLES2::register_config();
 		RasterizerGLES2::make_current();
 		// driver_name = "GLES2";
@@ -610,21 +610,21 @@ unsigned int OS_SDL::get_mouse_button_state(uint32_t button_mask, bool refresh) 
 void OS_SDL::fix_touch_position(Vector2 &pos) {
 	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE) {
+		int w, h;
+		SDL_GetWindowSize(sdl_window, &w, &h);
+		float coef = ((float)w) / ((float)h);
+		/// QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION
+		pos = Point2(h - pos.y, pos.x);
+		/// coefficient correction
+		pos.x *= coef;
+		pos.y /= coef;
+	} else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
 		// only for landscape mode
 		int w, h;
 		SDL_GetWindowSize(sdl_window, &w, &h);
 		float coef = ((float)w) / ((float)h);
 		/// QT_EXTENDED_SURFACE_ORIENTATION_LANDSCAPEORIENTATION
 		pos = Point2(pos.y, w - pos.x);
-		/// coefficient correction
-		pos.x *= coef;
-		pos.y /= coef;
-	} else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
-		int w, h;
-		SDL_GetWindowSize(sdl_window, &w, &h);
-		float coef = ((float)w) / ((float)h);
-		/// QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION
-		pos = Point2(h - pos.y, pos.x);
 		/// coefficient correction
 		pos.x *= coef;
 		pos.y /= coef;
@@ -637,7 +637,7 @@ void OS_SDL::process_events() {
 
 	do_mouse_warp = false;
 	bool mouse_mode_grab = mouse_mode == MOUSE_MODE_CAPTURED || mouse_mode == MOUSE_MODE_CONFINED;
-	Size2i window_size;
+	Size2i window_size  = get_window_size();
 	SDL_Scancode current_scancode = SDL_NUM_SCANCODES;
 	bool current_echo = false;
 	SDL_bool text_edit_mode = SDL_IsTextInputActive();
@@ -821,7 +821,7 @@ void OS_SDL::process_events() {
 			// mouse_event->set_device(0);
 
 			long long index = (int)event.tfinger.fingerId;
-			Point2 pos = Point2(event.tfinger.x, event.tfinger.y);
+			Point2 pos = Point2(event.tfinger.x * current_videomode.width, event.tfinger.y * current_videomode.height);
 
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
 			fix_touch_position(pos);

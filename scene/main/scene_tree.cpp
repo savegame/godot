@@ -1252,8 +1252,9 @@ void SceneTree::_update_root_rect() {
 			// force landscape
 			if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 					OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
-					OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
+					OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
 				screen_size = Size2(screen_size.y, screen_size.x);
+			}
 #endif
 			root->set_attach_to_screen_rect(Rect2(margin, screen_size));
 			root->set_size_override_stretch(true);
