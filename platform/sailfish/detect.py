@@ -72,8 +72,8 @@ def get_opts():
         BoolVariable('separate_debug_symbols', 'Create a separate file with the debug symbols', False),
         BoolVariable('touch', 'Enable touch events', True),
         BoolVariable('tools', 'Enable editor tools', False),
-        PathVariable('static_sdl', 'Enable static link of SDL2', ""),
-        PathVariable('sdl_path', 'Custom SDL2 path', "")
+        # PathVariable('static_sdl', 'Enable static link of SDL2', ""),
+        # PathVariable('sdl_path', 'Custom SDL2 path', "")
     ]
 
 

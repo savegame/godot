@@ -171,6 +171,12 @@ void RasterizerCanvasGLES3::canvas_begin() {
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DISTANCE_FIELD, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_NINEPATCH, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_SKELETON, false);
+#if SAILFISH_FORCE_LANDSCAPE
+	WARN_PRINT_ONCE("Force landscape enabled");
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_LANDSCAPE, true);
+#else
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_LANDSCAPE, false);
+#endif
 
 	state.canvas_shader.set_custom_shader(0);
 	state.canvas_shader.bind();
@@ -184,9 +190,7 @@ void RasterizerCanvasGLES3::canvas_begin() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0, 1.0));
 	}
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-	WARN_PRINT_ONCE("Force landscape enabled");
-	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_LANDSCAPE, true);
+#if SAILFISH_FORCE_LANDSCAPE
 	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE)
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 1);
 	else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
@@ -195,8 +199,6 @@ void RasterizerCanvasGLES3::canvas_begin() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 3);
 	else
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 0);
-#else
-	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_LANDSCAPE, false);
 #endif
 
 	// state.canvas_shader.set_uniform(CanvasShaderGLES3::PROJECTION_MATRIX,state.vp);
@@ -641,10 +643,6 @@ void RasterizerCanvasGLES3::_canvas_item_render_commands(Item *p_item, Item *cur
 
 	int cc = p_item->commands.size();
 	Item::Command **commands = p_item->commands.ptrw();
-
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-	state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 0);
-#endif
 
 	for (int i = 0; i < cc; i++) {
 
@@ -1376,6 +1374,10 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 	bool prev_distance_field = false;
 	bool prev_use_skeleton = false;
 
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	// state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 0);
+#endif
+
 	while (p_item_list) {
 
 		Item *ci = p_item_list;
@@ -1968,6 +1970,9 @@ void RasterizerCanvasGLES3::reset_canvas() {
 		glBindFramebuffer(GL_FRAMEBUFFER, storage->frame.current_rt->fbo);
 		glColorMask(1, 1, 1, 1); //don't touch alpha
 	}
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::FORCE_LANDSCAPE, 1);
+#endif
 
 	glBindVertexArray(0);
 	glDisable(GL_CULL_FACE);
@@ -2010,10 +2015,10 @@ void RasterizerCanvasGLES3::reset_canvas() {
 	} else {
 		Vector2 ssize = OS::get_singleton()->get_window_size();
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
-				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
-				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
-			ssize = Vector2(ssize.y, ssize.x);
+		// if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
+		// 		OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
+		// 		OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
+		// 	ssize = Vector2(ssize.y, ssize.x);
 #endif
 		canvas_transform.translate(-(ssize.width / 2.0f), -(ssize.height / 2.0f), 0.0f);
 		canvas_transform.scale(Vector3(2.0f / ssize.width, -2.0f / ssize.height, 1.0f));
@@ -2081,12 +2086,12 @@ void RasterizerCanvasGLES3::draw_window_margins(int *black_margin, RID *black_im
 
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
 	// force landscape
-	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
-			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
-			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
-		window_w = window_size.height;
-		window_h = window_size.width;
-	}
+	// if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
+	// 		OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
+	// 		OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
+	// 	window_w = window_size.height;
+	// 	window_h = window_size.width;
+	// }
 #endif
 
 	glBindFramebuffer(GL_FRAMEBUFFER, RasterizerStorageGLES3::system_fbo);

@@ -250,7 +250,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 	}
 
 	// if( screen_orientation != OS::get_singleton()->get_screen_orientation() ) {
-	mprint_verbose2("SDL_SetHint(%s, %s)", SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str());
+	mprint_verbose2("SDL_SetHint(%s, %s)\n", SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str());
 	if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str(), SDL_HINT_OVERRIDE) == SDL_FALSE) {
 		mprint_verbose("WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events");
 	}
@@ -294,7 +294,7 @@ void ContextGL_SDL::set_screen_orientation(OS::ScreenOrientation p_orientation) 
 	"portrait"           top of device up
 	"inverted-portrait"  top of device down
 	*/
-
+	
 	if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str(), SDL_HINT_OVERRIDE) == SDL_FALSE) {
 		mprint_verbose("WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events");
 		// OS::get_singleton()->print
