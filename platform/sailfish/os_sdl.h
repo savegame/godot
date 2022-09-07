@@ -175,7 +175,7 @@ protected:
 	bool is_window_maximize_allowed();
 
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-	void fix_touch_position(Vector2 &pos);
+	void fix_touch_position(Vector2 &pos, bool absolute = false);
 #endif
 
 public:

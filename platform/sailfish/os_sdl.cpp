@@ -140,12 +140,12 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	//SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 	//SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
 
-	context_gl = memnew(ContextGL_SDL(sdl_display_mode, current_videomode, true));
-	context_gl->set_screen_orientation(OS::get_singleton()->get_screen_orientation());
+	context_gl = memnew(ContextGL_SDL(sdl_display_mode, current_videomode, p_video_driver == VIDEO_DRIVER_GLES3 && RasterizerGLES3::is_viable() == OK));
 	if (context_gl->initialize() == FAILED) {
 		memdelete(context_gl);
 		return FAILED;
 	}
+	context_gl->set_screen_orientation(OS::get_singleton()->get_screen_orientation());
 	sdl_window = context_gl->get_window_pointer();
 
 	if (p_video_driver == VIDEO_DRIVER_GLES3 && RasterizerGLES3::is_viable() == OK) {
@@ -607,27 +607,24 @@ unsigned int OS_SDL::get_mouse_button_state(uint32_t button_mask, bool refresh) 
 }
 
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-void OS_SDL::fix_touch_position(Vector2 &pos) {
+void OS_SDL::fix_touch_position(Vector2 &pos, bool absolute) {
+	int w, h;
+	SDL_GetWindowSize(sdl_window, &w, &h);
+	if( absolute ) {
+		pos.x /= w;
+		pos.y /= h;
+	}
 	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE) {
-		int w, h;
-		SDL_GetWindowSize(sdl_window, &w, &h);
-		float coef = ((float)w) / ((float)h);
-		/// QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION
-		pos = Point2(h - pos.y, pos.x);
-		/// coefficient correction
-		pos.x *= coef;
-		pos.y /= coef;
-	} else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
 		// only for landscape mode
-		int w, h;
-		SDL_GetWindowSize(sdl_window, &w, &h);
-		float coef = ((float)w) / ((float)h);
-		/// QT_EXTENDED_SURFACE_ORIENTATION_LANDSCAPEORIENTATION
-		pos = Point2(pos.y, w - pos.x);
-		/// coefficient correction
-		pos.x *= coef;
-		pos.y /= coef;
+		pos = Point2(pos.y*w, (1.0 - pos.x)*h);
+	} else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
+		pos = Point2((1.0 - pos.y)*w, pos.x*h);
+	} else if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_PORTRAIT) {
+		pos = Point2((1.0 - pos.x)*w, (1.0 - pos.y)*h);
+	} else {
+		pos.x *= w;
+		pos.y *= h;
 	}
 }
 #endif
@@ -751,9 +748,15 @@ void OS_SDL::process_events() {
 			Ref<InputEventMouseButton> sc;
 			sc.instance();
 
+			Vector2 pos(event.button.x, event.button.y);
+
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+			fix_touch_position(pos, true);
+#endif
+
 			get_key_modifier_state(sc);
 			sc->set_button_mask(get_mouse_button_state(0, true));
-			sc->set_position(Vector2(event.button.x, event.button.y));
+			sc->set_position(pos);
 			sc->set_global_position(sc->get_position());
 			sc->set_button_index(event.button.button);
 
@@ -777,7 +780,12 @@ void OS_SDL::process_events() {
 			// Motion is also simple.
 			// A little hack is in order
 			// to be able to send relative motion events.
-			Point2i pos(event.motion.x, event.motion.y);
+			// Point2i pos(event.motion.x, event.motion.y);
+			Vector2 pos(event.motion.x, event.motion.y);
+
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+			fix_touch_position(pos, true);
+#endif
 
 			// TODO: Handle mouse warp. Is this needed in SDL?
 
@@ -821,7 +829,7 @@ void OS_SDL::process_events() {
 			// mouse_event->set_device(0);
 
 			long long index = (int)event.tfinger.fingerId;
-			Point2 pos = Point2(event.tfinger.x * current_videomode.width, event.tfinger.y * current_videomode.height);
+			Point2 pos = Point2(event.tfinger.x, event.tfinger.y);
 
 #if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
 			fix_touch_position(pos);
