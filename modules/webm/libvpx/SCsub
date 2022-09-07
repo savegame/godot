@@ -227,7 +227,7 @@ if env["platform"] == "uwp":
 elif env["platform"] != "windows":  # Disable for Windows, yasm SIMD optimizations trigger crash (GH-50862).
     import platform
 
-    is_x11_or_server_arm = (env["platform"] == "x11" or env["platform"] == "server") and (
+    is_x11_or_server_arm = (env["platform"] == "x11" or env["platform"] == "server" or env["platform"] == 'sailfish') and (
         platform.machine().startswith("arm") or platform.machine().startswith("aarch")
     )
     is_macos_x86 = env["platform"] == "osx" and ("arch" in env and (env["arch"] != "arm64"))
@@ -242,6 +242,7 @@ elif env["platform"] != "windows":  # Disable for Windows, yasm SIMD optimizatio
             env["platform"] == "windows"
             or env["platform"] == "x11"
             or env["platform"] == "haiku"
+            or env["platform"] == 'sailfish'
             or is_macos_x86
             or is_android_x86
             or is_ios_x86
@@ -311,6 +312,7 @@ if webm_cpu_arm:
         and env["android_arch"] == "armv7"
         or env["platform"] == "x11"
         or env["platform"] == "server"
+        or env["platform"] == 'sailfish'
     ):
         env_libvpx["ASFLAGS"] = "-mfpu=neon"
     elif env["platform"] == "uwp":
