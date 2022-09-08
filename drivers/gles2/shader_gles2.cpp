@@ -172,6 +172,11 @@ ShaderGLES2::Version *ShaderGLES2::get_current_version() {
 	strings.push_back("#define USE_GLES_OVER_GL\n");
 #else
 	strings.push_back("#version 100\n");
+
+#ifdef SAILFISH_i486_GLES2
+	strings.push_back("#define USE_SAILFISH_i486_GLES2\n");
+#endif
+
 //angle does not like
 #ifdef JAVASCRIPT_ENABLED
 	strings.push_back("#define USE_HIGHP_PRECISION\n");
