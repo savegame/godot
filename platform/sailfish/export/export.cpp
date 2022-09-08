@@ -129,20 +129,21 @@ const String desktop_file_template =
 		"Type=Application\n"
 		"X-Nemo-Application-Type=Game\n"
 		"Icon=%{_datadir}/%{name}/%{name}.png\n"
-		"Exec=%{_bindir}/%{name} --main-pack %{_datadir}/%{name}/%{name}.pck\n"
+		"Exec=%{_bindir}/%{name} --main-pack %{_datadir}/%{name}/%{name}.pck\n" // TODO SAILFISH use invoker! 
 		"Name=%{_gd_launcher_name}\n"
 		"Name[en]=%{_gd_launcher_name}\n";
+		// TODO SAILFISH add sailjail 
 
 static void _execute_thread(void *p_ud) {
 
 	EditorNode::ExecuteThreadArgs *eta = (EditorNode::ExecuteThreadArgs *)p_ud;
-	Error err = OS::get_singleton()->execute(eta->path, eta->args, true, NULL, &eta->output, &eta->exitcode, true, eta->execute_output_mutex);
+	Error err = OS::get_singleton()->execute(eta->path, eta->args, true, NULL, &eta->output, &eta->exitcode, true, &eta->execute_output_mutex);
 	print_verbose("Thread exit status: " + itos(eta->exitcode));
 	if (err != OK) {
 		eta->exitcode = err;
 	}
 
-	eta->done = true;
+	eta->done.set();
 }
 
 class EditorExportPlatformSailfish : public EditorExportPlatform {
@@ -290,18 +291,15 @@ protected:
 		EditorNode::ExecuteThreadArgs eta;
 		eta.path = p_path;
 		eta.args = p_arguments;
-		eta.execute_output_mutex = Mutex::create();
 		eta.exitcode = 255;
-		eta.done = false;
+		eta.done.set_to(false);
 
 		int prev_len = 0;
+		eta.execute_output_thread.start( _execute_thread, &eta);
 
-		eta.execute_output_thread = Thread::create(_execute_thread, &eta);
 
-		ERR_FAIL_COND_V(!eta.execute_output_thread, 0);
-
-		while (!eta.done) {
-			eta.execute_output_mutex->lock();
+		while (!eta.done.is_set()) {
+			eta.execute_output_mutex.lock();
 			if (prev_len != eta.output.length()) {
 				String to_add = eta.output.substr(prev_len, eta.output.length());
 				prev_len = eta.output.length();
@@ -309,13 +307,11 @@ protected:
 				//print_verbose(to_add);
 				Main::iteration();
 			}
-			eta.execute_output_mutex->unlock();
+			eta.execute_output_mutex.unlock();
 			OS::get_singleton()->delay_usec(1000);
 		}
 
-		Thread::wait_to_finish(eta.execute_output_thread);
-		memdelete(eta.execute_output_thread);
-		memdelete(eta.execute_output_mutex);
+		eta.execute_output_thread.wait_to_finish();
 
 		return eta.exitcode;
 	}
