@@ -1094,6 +1094,8 @@ void OS_SDL::process_events() {
 		}
 	}
 
+	input->flush_buffered_events();
+
 	// if (do_mouse_warp) {
 	// 	// Handle mouse warp here if needed. Not sure.
 	// }
