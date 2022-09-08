@@ -314,6 +314,13 @@ void RasterizerGLES2::set_current_render_target(RID p_render_target) {
 	} else {
 		storage->frame.current_rt = nullptr;
 		storage->frame.clear_request = false;
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
+				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
+				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
+			glViewport(0, 0, OS::get_singleton()->get_window_size().height, OS::get_singleton()->get_window_size().width);
+		else
+#endif
 		glViewport(0, 0, OS::get_singleton()->get_window_size().width, OS::get_singleton()->get_window_size().height);
 		glBindFramebuffer(GL_FRAMEBUFFER, RasterizerStorageGLES2::system_fbo);
 	}
@@ -338,8 +345,22 @@ void RasterizerGLES2::set_boot_image(const Ref<Image> &p_image, const Color &p_c
 		return;
 	}
 
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	int window_w = OS::get_singleton()->get_window_size().width;
+	int window_h = OS::get_singleton()->get_window_size().height;
+
+	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
+			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
+			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
+		int tmp = window_w;
+		window_w = window_h;
+		window_h = tmp;
+	}
+	p_scale = true;
+#else
 	int window_w = OS::get_singleton()->get_video_mode(0).width;
 	int window_h = OS::get_singleton()->get_video_mode(0).height;
+#endif
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, window_w, window_h);

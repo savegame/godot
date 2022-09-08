@@ -145,7 +145,7 @@ void main() {
 	vec2 uv;
 
 #ifdef USE_INSTANCING
-	mat4 extra_matrix_instance = extra_matrix * transpose(mat4(instance_xform0, instance_xform1, instance_xform2, vec4(0.0, 0.0, 0.0, 1.0)));
+	mat4 extra_matrix_instance = extra_matrix * TRANSPOSE_FUNC_NAME(mat4(instance_xform0, instance_xform1, instance_xform2, vec4(0.0, 0.0, 0.0, 1.0)));
 	color *= instance_color;
 
 #ifdef USE_INSTANCE_CUSTOM
@@ -250,7 +250,7 @@ VERTEX_SHADER_CODE
 			bone_transform += b * bone_weights[i];
 		}
 
-		mat4 bone_matrix = skeleton_transform * transpose(bone_transform) * skeleton_transform_inverse;
+		mat4 bone_matrix = skeleton_transform * TRANSPOSE_FUNC_NAME(bone_transform) * skeleton_transform_inverse;
 
 		outvec = bone_matrix * outvec;
 	}
@@ -401,6 +401,9 @@ const bool at_light_pass = true;
 const bool at_light_pass = false;
 #endif
 
+#ifdef USE_FORCE_LANDSCAPE
+uniform int force_landscape;
+#endif
 uniform bool use_default_normal;
 
 /* clang-format off */
@@ -441,6 +444,22 @@ void main() {
 #ifdef USE_FORCE_REPEAT
 	//needs to use this to workaround GLES2/WebGL1 forcing tiling that textures that don't support it
 	uv = mod(uv, vec2(1.0, 1.0));
+#endif
+
+#ifdef USE_FORCE_LANDSCAPE
+	if (force_landscape != 0) {
+		if (force_landscape == 1) {
+			// reverse landscape
+			uv = vec2(1.0 - uv.y, uv.x);
+		} else if (force_landscape == 2) {
+			// landscape
+			uv = vec2(uv.y, 1.0 - uv.x);
+		} else if (force_landscape == 3) {
+			// reverse portrait
+			uv = vec2(1.0 - uv.x, 1.0 - uv.y);
+		}
+	}
+	// normal portrait - no need modify
 #endif
 
 #if !defined(COLOR_USED)

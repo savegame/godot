@@ -1203,6 +1203,9 @@ void RasterizerCanvasGLES2::canvas_begin() {
 }
 
 void RasterizerCanvasGLES2::canvas_render_items_begin(const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
+#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::FORCE_LANDSCAPE, 0);
+#endif
 	batch_canvas_render_items_begin(p_modulate, p_light, p_base_transform);
 }
 
