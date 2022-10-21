@@ -60,8 +60,44 @@
 #define prop_package_name "package/name"
 #define prop_package_launcher_name "package/game_name"
 #define prop_package_prefix "package/assets_prefix"
-#define prop_package_icon "package/launcher_icon"
+// #define prop_package_icon "package/launcher_icon"
+#define prop_launcher_icons_86 "launcher_icons/launcher_icon_86"
+#define prop_launcher_icons_108 "launcher_icons/launcher_icon_108"
+#define prop_launcher_icons_128 "launcher_icons/launcher_icon_128"
+#define prop_launcher_icons_172 "launcher_icons/launcher_icon_172"
+// firejail / sailjail properties
+#define prop_sailjail_permissions "sialjail_permissions/"
+#define prop_sailjail_enabled "sialjail/enabled"
+#define prop_sailjail_organization "sialjail/organization"
+#define prop_validator_enable "rpm_validator/enable"
 #define mersdk_rsa_key "/vmshare/ssh/private_keys/engine/mersdk"
+
+const String sailjail_minimum_required_permissions[] = {
+	"Audio", // required in any case
+	"Internet", // looks like its too required FIXME: debug godot and made it useavle without internet permission  on device
+	String()
+};
+
+const String sailjail_permissions[] = {
+    "Bluetooth",
+    "Camera",
+    // "Internet", // looks like its too required
+    "Location",
+    "MediaIndexing",
+    "Microphone",
+    "NFC",
+    "RemovableMedia",
+    "UserDirs",
+    "WebView",
+    "Documents",
+    "Downloads",
+    "Music",
+    "Pictures",
+    "PublicDir",
+    "Videos",
+    "Compatibility",
+	String()
+};
 
 // #ifdef WINDOWS_ENABLED
 // const String separator("\\");
@@ -71,21 +107,24 @@ const String separator("/");
 
 const String spec_file_tempalte =
 		"Name:       %{_gd_application_name}\n"
+		"# >> macros\n"
+		"%define __requires_exclude ^libaudioresource|libfreetype|libudev|libSDL2.*$\n"
+		// "%define __provides_exclude_from ^lib(freetype|udev)\\.so.*$\n"
+		"# << macros\n"
 		"Summary:    %{_gd_launcher_name}\n"
 		"Version:    %{_gd_version}\n"
 		"Release:    %{_gd_release}\n"
 		"Group:      Game\n"
-		"License:    LICENSE\n"
+		"License:    Proprietary\n"
 		"BuildArch:  %{_gd_architecture}\n"
 		"URL:        http://example.org/\n"
-		"Requires:   SDL2 >= 2.0.9\n"
-		"Requires:   freetype\n"
-		"Requires:   libpng\n"
-		"Requires:   openssl\n"
-		"Requires:   zlib\n"
-		"Requires:   glib2\n"
-		"Requires:   libaudioresource\n"
-		"#Requires:   libkeepalive-glib\n"
+		// "Requires:   SDL2 >= 2.0.9\n"
+		// "Requires:   freetype\n"
+		// "Requires:   libpng\n"
+		// "Requires:   openssl\n"
+		// "Requires:   zlib\n"
+		// "Requires:   glib2\n"
+		// "Requires:   libaudioresource\n"
 		"\n"
 		"%define _topdir %{_gd_shared_path}%{_gd_export_path}\n"
 		"\n"
@@ -109,15 +148,17 @@ const String spec_file_tempalte =
 		"mv  \"%{_topdir}/BUILD%{_datadir}\" \"%{buildroot}%{_datadir}\"\n"
 		"mkdir -p \"%{buildroot}/usr/share/applications\"\n"
 		"[ -f \"%{_topdir}/BUILD/usr/share/applications/%{name}.desktop\" ] && mv -f \"%{_topdir}/BUILD/usr/share/applications/%{name}.desktop\" \"%{buildroot}/usr/share/applications/%{name}.desktop\"||echo \"File moved already\"\n"
-		// "mv -f \"%{_topdir}/BUILD/usr/share/applications/%{name}.desktop\" \"%{buildroot}/usr/share/applications/%{name}.desktop\"\n"
-		//"rm -fr %{_gd_shared_path}%{_gd_export_path}/rpm\n"
+		"chmod 755 %{buildroot}/usr/share/icons/hicolor/*\n"
+		"chmod 755 %{buildroot}/usr/share/icons/hicolor/*/apps\n"
+		//libudev.so.1 - deprecated dependency..
 		"\n"
 		"%files\n"
 		"%defattr(644,root,root,-)\n"
 		"%attr(755,root,root) %{_bindir}/%{name}\n"
-		"%attr(644,root,root) %{_datadir}/%{name}/%{name}.png\n"
+		// "%attr(644,root,root) %{_datadir}/%{name}/%{name}.png\n" // FIXME: add icons for all resolutions, as SailfishOS specification needed
+		"%{_datadir}/icons/hicolor/*\n"
 		"%attr(644,root,root) %{_datadir}/%{name}/%{name}.pck\n"
-		"%attr(644,root,root) /usr/share/applications/%{name}.desktop\n"
+		"%attr(644,root,root) %{_datadir}/applications/%{name}.desktop\n"
 		"%changelog\n"
 		"* %{_gd_date} Godot Game Engine\n"
 		"- application %{name} packed to RPM\n"
@@ -127,11 +168,18 @@ const String spec_file_tempalte =
 const String desktop_file_template =
 		"[Desktop Entry]\n"
 		"Type=Application\n"
-		"X-Nemo-Application-Type=Game\n"
-		"Icon=%{_datadir}/%{name}/%{name}.png\n"
-		"Exec=%{_bindir}/%{name} --main-pack %{_datadir}/%{name}/%{name}.pck\n" // TODO SAILFISH use invoker! 
+		"X-Nemo-Application-Type=silica-qt5\n"
+		"Icon=%{name}\n"
+		"Exec=%{name} --main-pack %{_datadir}/%{name}/%{name}.pck\n" // FIXME: SAILFISH use invoker! 
 		"Name=%{_gd_launcher_name}\n"
 		"Name[en]=%{_gd_launcher_name}\n";
+
+const String desktop_file_sailjail =
+		"\n"
+		"[X-Sailjail]\n"
+		"Permissions=%{permissions}\n"
+		"OrganizationName=%{organization}\n"
+		"ApplicationName=%{name}\n";
 		// TODO SAILFISH add sailjail 
 
 static void _execute_thread(void *p_ud) {
@@ -211,7 +259,7 @@ protected:
 		for (int i = 0; i < 4; i++)
 			args.push_back(target.version[i]);
 		bool error;
-		return target.name + String("-%d.%d.%d.%d-").sprintf(args, &error) + arch_to_text(target.arch);
+		return target.name + String("-%d.%d.%d.%d-").sprintf(args, &error) + arch_to_text(target.arch) + String(".default");
 	}
 
 	String arch_to_text(TargetArch arch) const {
@@ -317,9 +365,15 @@ protected:
 	}
 
 	Error build_package(const NativePackage &package, const Ref<EditorExportPreset> &p_preset, const bool &p_debug, const String &sfdk_tool, EditorProgress &ep, int progress_from, int progress_full) {
-		const int steps = 8; // if add some step to build process, need change it
+		int steps = 8; // if add some step to build process, need change it
+		const bool validate_rpm = p_preset->get(prop_validator_enable);
+		const bool sailjail_enabled = p_preset->get(prop_sailjail_enabled);
 		int current_step = 0;
 		int progress_step = progress_full / steps;
+
+		if( validate_rpm ) {
+			steps++; //another step to validate PRM
+		}
 
 		SDKConnectType sdk_tool = SDKConnectType::tool_sfdk;
 		String tool = EDITOR_GET("export/sailfish/tool");
@@ -328,9 +382,27 @@ protected:
 			sdk_tool = SDKConnectType::tool_ssh;
 
 		List<String> args;
+		List<String> pre_args;
 		String arm_template;
 		String aarch64_template;
 		String x86_template;
+
+		if ( sdk_tool == SDKConnectType::tool_ssh ) {
+			// here we neet to know where is RSA keys for buildengine
+			String rsa_key_path = p_preset->get(prop_sailfish_sdk_path);
+			rsa_key_path += String(mersdk_rsa_key);
+			String ssh_port = EDITOR_GET("export/sailfish/ssh_port");
+			pre_args.push_back("-o");
+			pre_args.push_back("\"IdentitiesOnly=yes\"");
+			pre_args.push_back("-i");
+			pre_args.push_back( String("\"") + rsa_key_path + String("\"") );
+			pre_args.push_back("-p");
+			pre_args.push_back(ssh_port); // default is 2222 port
+			pre_args.push_back("mersdk@localhost");
+		} else { // SFDK tool
+			pre_args.push_back("engine");
+			pre_args.push_back("exec");
+		}
 
 		if (p_debug) {
 			arm_template = String(p_preset->get(prop_custom_binary_arm_debug));
@@ -388,7 +460,6 @@ protected:
 		// String spec_file_path = rpm_dir_path + separator+ package.name + String(".spec");
 		String spec_file_path = broot_path + separator + String("SPECS") + separator + package.name + String(".spec");
 		String desktop_file_path = broot_path + build_folder + String("/usr/share/applications/").replace("/", separator) + package.name + String(".desktop");
-		String icon_file_path;
 		String package_prefix = p_preset->get(prop_package_prefix);
 		String data_dir = package_prefix + String("/share");
 		String bin_dir = package_prefix + String("/bin");
@@ -410,8 +481,9 @@ protected:
 			args.clear();
 			String pipe;
 			int exitcode = 0;
-			args.push_back("engine");
-			args.push_back("exec");
+			for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
+				args.push_back( a->get() );
+			}
 			args.push_back("bash");
 			args.push_back("-c");
 			if ( export_path.find(shared_home) == 0 ) 
@@ -454,28 +526,27 @@ protected:
 			return ERR_CANT_CREATE;
 		}
 
-		//            DirAccessRef broot = DirAccess::open(broot_path, err);
 		DirAccessRef broot = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
-		// err = broot->make_dir_recursive(rpm_dir_path);
-		err = broot->make_dir_recursive(broot_path + separator + String("SPECS"));
-		if (err != Error::OK) {
-			print_error(String("Cant create directory: ") + broot_path + separator + String("SPECS"));
-			return ERR_CANT_CREATE;
-		}
-		err = broot->make_dir_recursive(broot_path + build_folder + data_dir_native + separator + package.name);
-		if (err != Error::OK) {
-			print_error(String("Cant create directory: ") + broot_path + build_folder + data_dir_native + separator + package.name);
-			return ERR_CANT_CREATE;
-		}
-		err = broot->make_dir_recursive(broot_path + build_folder + bin_dir_native);
-		if (err != Error::OK) {
-			print_error(String("Cant create directory: ") + broot_path + build_folder + bin_dir_native);
-			return ERR_CANT_CREATE;
-		}
-		err = broot->make_dir_recursive(broot_path + build_folder + String("/usr/share/applications/").replace("/", separator));
-		if (err != Error::OK) {
-			print_error(String("Cant create directory: ") + broot_path + build_folder + String("/usr/share/applications/").replace("/", separator));
-			return ERR_CANT_CREATE;
+		const String directories[] = {
+			separator + String("SPECS"),
+			build_folder + data_dir_native + separator + package.name,
+			build_folder + bin_dir_native,
+			build_folder + String("/usr/share/applications/").replace("/", separator),
+			build_folder + String("/usr/share/icons/hicolor/86x86/").replace("/", separator) + String("apps"),
+			build_folder + String("/usr/share/icons/hicolor/108x108/").replace("/", separator) + String("apps"),
+			build_folder + String("/usr/share/icons/hicolor/128x128/").replace("/", separator) + String("apps"),
+			build_folder + String("/usr/share/icons/hicolor/172x172/").replace("/", separator) + String("apps"),
+			String("")
+		};
+		
+		int path_num = 0;
+		while( directories[path_num].length() > 0 ) {
+			err = broot->make_dir_recursive(broot_path + directories[path_num]);
+			if (err != Error::OK) {
+				print_error(String("Cant create directory: ") + broot_path + directories[path_num]);
+				return ERR_CANT_CREATE;
+			}
+			path_num++;
 		}
 
 		ep.step("copy export tempalte to buildroot", progress_from + (++current_step) * progress_step);
@@ -508,7 +579,6 @@ protected:
 				print_error(String("i486") + debugs + String(" template is empty"));
 				return ERR_CANT_CREATE;
 			}
-		// TODO aarch64
 		} else if (package.target.arch == arch_aarch64) {
 			if (!aarch64_template.empty()) {
 
@@ -523,14 +593,13 @@ protected:
 				print_error(String("aarch64") + debugs + String(" template is empty"));
 				return ERR_CANT_CREATE;
 			}
-		// TODO aarch64
 		} else {
 
 			print_error("Wrong architecture of package");
 			return ERR_CANT_CREATE;
 		}
 
-		ep.step("create *.pck file.", progress_from + (++current_step) * progress_step);
+		ep.step( String("create name.pck file.").replace("name",package.name), progress_from + (++current_step) * progress_step);
 		pck_path = broot_path + build_folder + data_dir_native + separator + package.name + separator + package.name + String(".pck");
 		err = export_pack(p_preset, p_debug, pck_path);
 		if (err != Error::OK) {
@@ -575,21 +644,61 @@ protected:
 			file_text = file_text.replace("%{name}", package.name);
 			file_text = file_text.replace("%{_datadir}", data_dir);
 			file_text = file_text.replace("%{_bindir}", bin_dir);
+			if( sailjail_enabled ) {
+				file_text = file_text + desktop_file_sailjail.replace("%{name}", package.name);
+				file_text = file_text.replace("%{organization}", String(p_preset->get(prop_sailjail_organization)));
+				// collect sailjail permissions
+				int permission_num = 0;
+				String permissions;
+				// minimum required permission
+				while( !sailjail_minimum_required_permissions[permission_num].empty() ) {
+					if(permissions.empty())
+						permissions = sailjail_minimum_required_permissions[permission_num];
+					else
+						permissions = permissions + String(";") + sailjail_minimum_required_permissions[permission_num];
+					permission_num++;
+				}
+				// all other permissions
+				permission_num = 0;
+				while( !sailjail_permissions[permission_num].empty() ) {
+					if( !p_preset->get(String(prop_sailjail_permissions) + sailjail_permissions[permission_num++]) )
+						continue;
+					if(permissions.empty())
+						permissions = sailjail_permissions[permission_num-1];
+					else
+						permissions = permissions + String(";") + sailjail_permissions[permission_num-1];
+				}
+				file_text = file_text.replace("%{permissions}", permissions);
+			}
 			desktop_file->store_string(file_text);
 			desktop_file->flush();
 			desktop_file->close();
 		}
 
-		ep.step(String("copy project icon"), progress_from + (++current_step) * progress_step);
-		String icon = ProjectSettings::get_singleton()->get("application/config/icon");
-		icon_file_path = broot_path + build_folder + separator + data_dir_native + separator + package.name + separator + package.name + String(".png");
-		if (broot->copy(icon, icon_file_path) != Error::OK) {
-			print_error(String("Cant copy icon file \"") + icon + String("\" to \"") + icon_file_path + String("\""));
-			return ERR_CANT_CREATE;
+		ep.step(String("copy project icons"), progress_from + (++current_step) * progress_step);
+		int icon_number = 0;
+		const String icons[] = {
+			String(p_preset->get(prop_launcher_icons_86)),"86x86",
+			String(p_preset->get(prop_launcher_icons_108)),"108x108",
+			String(p_preset->get(prop_launcher_icons_128)),"128x128",
+			String(p_preset->get(prop_launcher_icons_172)),"172x172",
+			String()
+		};
+
+		while( icons[icon_number].length() > 0 ) {
+			String icon = icons[icon_number];
+			// //usr/share/icons/hicolor/128x128/apps/
+			String icon_file_path = broot_path + build_folder + String("/usr/share/icons/hicolor/").replace("/",separator) + icons[icon_number+1] + separator + String("apps") + separator + package.name + String(".png");
+			if (broot->copy(icon, icon_file_path) != Error::OK) {
+				print_error(String("Cant copy icon file \"") + icon + String("\" to \"") + icon_file_path + String("\""));
+				return ERR_CANT_CREATE;
+			}
+			icon_number+=2;
 		}
 
 		ep.step(String("setup SDK tool for ") + arch_to_text(package.target.arch) + String(" package build"), progress_from + (++current_step) * progress_step);
 		{
+			String build_script;
 			String buid_script_path = broot_path + separator + String("buildscript.sh");
 			{ //
 				FileAccessRef script_file = FileAccess::open(buid_script_path, FileAccess::WRITE, &err);
@@ -602,7 +711,9 @@ protected:
 				file_text += String("--define ");
 				file_text += String(String("'_topdir ") + sdk_shared_path + export_path_part + String("'"));
 				file_text += String(" -ba ");
+				file_text += String("--without debug --without debuginfo ");
 				file_text += String("\"") + sdk_shared_path + export_path_part + String("/SPECS/") + package.name + String(".spec\"");
+				build_script = file_text;
 				script_file->store_string(file_text);
 				script_file->flush();
 				script_file->close();
@@ -618,36 +729,25 @@ protected:
 			print_verbose(String("sfdk") + result_string);
 			String execute_binary = sfdk_tool;
 			String long_parameter;
-			if ( sdk_tool == SDKConnectType::tool_ssh ) {
-				// here we neet to know where is RSA keys for buildengine
-				String rsa_key_path = p_preset->get(prop_sailfish_sdk_path);
-				rsa_key_path += String(mersdk_rsa_key);
-				String ssh_port = EDITOR_GET("export/sailfish/ssh_port");
-				args.clear();
-				args.push_back("-o");
-				args.push_back("\"IdentitiesOnly=yes\"");
-				args.push_back("-i");
-				args.push_back( String("\"") + rsa_key_path + String("\"") );
-				args.push_back("-p");
-				args.push_back(ssh_port); // default is 2222 port
-				args.push_back("mersdk@localhost");
-                
-                buid_script_path = sdk_shared_path + export_path_part + separator + String("buildscript.sh");
+			
+			args.clear();
+			for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
+				args.push_back( a->get() );
+			}
 
-			} else { // SFDK tool
-				args.clear();
-				args.push_back("engine");
-				args.push_back("exec");
+			if ( sdk_tool == SDKConnectType::tool_ssh ) {
+				buid_script_path = sdk_shared_path + export_path_part + separator + String("buildscript.sh");
 			}
 
 			args.push_back("sb2");
 			args.push_back("-t");
 			args.push_back(target_string);
 			args.push_back("bash");
-			args.push_back(buid_script_path);
+			args.push_back("-c");
+			args.push_back(build_script);
+			// args.push_back(buid_script_path);
 
 			int result = EditorNode::get_singleton()->execute_and_show_output(TTR("Build rpm package for ") + target_string, execute_binary, args, true, false);
-			//                if( execute_task(sfdk_tool, args, result) != Error::OK )
 			if (result != 0) {
 				return ERR_CANT_CREATE;
 			}
@@ -666,6 +766,40 @@ protected:
 					print_error(TTR("Cant move result of build, please check it by yourself: ") + broot_path + separator + String("RPMS"));
 					return ERR_CANT_CREATE;
 				}
+				
+				if( validate_rpm ) { 
+					if(sdk_tool == SDKConnectType::tool_sfdk) {
+						ep.step(String("Validate RPM file: ") + result_rpm_name, progress_from + (++current_step) * progress_step);
+						String rpm_path = rpm_prefix_path + separator + result_rpm_name;
+
+						args.clear();
+						args.push_back("config");
+						args.push_back( String("target=") + target_string.replace(".default","") );
+
+						result = EditorNode::get_singleton()->execute_and_show_output(TTR("Set target for sfdk validator tool ") + target_string.replace(".default",""), execute_binary, args, true, false);
+						if (result != 0) {
+							return ERR_CANT_CREATE;
+						}
+
+						args.clear();
+						args.push_back("check");
+						args.push_back(rpm_path);
+
+						result = EditorNode::get_singleton()->execute_and_show_output(TTR("Validate RPM package ") + result_rpm_name, execute_binary, args, true, false);
+						if (result != 0) {
+							return ERR_CANT_CREATE;
+						}
+					} else {
+						ep.step(String("Cant Validate RPM file: ") + result_rpm_name, progress_from + (++current_step) * progress_step);
+						// for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
+						// 	args.push_back( a->get() );
+						// }
+						// args.push_back("sb2");
+						// args.push_back("-t");
+						// args.push_back(target_string);
+						// args.push_back("")
+					}
+				}
 			}
 		}
 		ep.step(String("remove temp directory"), progress_from + (++current_step) * progress_step);
@@ -677,6 +811,8 @@ protected:
 			rmdir->erase_contents_recursive(); //rmdir->remove(<#String p_name#>)
 			rmdir->remove(broot_path);
 		}
+
+
 		ep.step(String("build ") + arch_to_text(package.target.arch) + String(" target success"), progress_from + (++current_step) * progress_step);
 		return Error::OK;
 	}
@@ -696,6 +832,7 @@ public:
 			r_features->push_back("etc");
 		} else if (driver == "GLES3") {
 			r_features->push_back("etc2");
+			r_features->push_back("s3tc");
 			if (ProjectSettings::get_singleton()->get("rendering/quality/driver/fallback_to_gles2")) {
 				r_features->push_back("etc");
 			}
@@ -743,11 +880,24 @@ public:
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_version_string, PROPERTY_HINT_PLACEHOLDER_TEXT, "1.0.0"), "1.0.0"));
 
 		// String gename =
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "harbour-$genname"), "harbour-$genname"));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "harbour-$genname"), "harbour-$genname" ));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_launcher_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "Game Name [default if blank]"), ""));
 
 		String global_icon_path = ProjectSettings::get_singleton()->get("application/config/icon");
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_icon, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_86, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_108, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_128, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_172, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+
+		
+		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, prop_sailjail_enabled), true));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_sailjail_organization, PROPERTY_HINT_PLACEHOLDER_TEXT, "org.godot"), ""));
+		int permission_num = 0;
+		while( !sailjail_permissions[permission_num].empty() ) {
+			r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, String(prop_sailjail_permissions) + sailjail_permissions[permission_num++]), false));
+		}
+
+		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, prop_validator_enable), false));
 	}
 
 	bool can_export(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override {
@@ -765,7 +915,7 @@ public:
 			sdk_tool = SDKConnectType::tool_ssh;
 
 		if (driver == "GLES3") {
-			print_line(TTR("SailfishOS earler than 4.2 dont support GLES3"));
+			print_line(TTR("GLES3 render not finished in SailfihsOS port! Sorry, but it work properly in Portrait orientation only."));
 			//return false;
 		}
 
@@ -918,19 +1068,17 @@ public:
 			}
 		} else {
 			sfdk_path = EDITOR_GET("export/sailfish/ssh_tool_path");
-// #ifdef WINDOWS_ENABLED
-// 			sfdk_path += String(".exe");
-// #endif
+			
 			if (err != Error::OK || !da || !da->file_exists(sfdk_path)) {
 				r_error = TTR("Wrong SSH tool path. Setup it in Editor->Settings->Export->Sailfish");
 				return false;
 			}
-            
-            String rsa_key = sdk_path + String(mersdk_rsa_key);
-            if (!da->file_exists(rsa_key)) {
-                r_error = TTR("Cant find RSA key for acces to build engine. Try use SailfishIDE for generate keys.");
-                return false;
-            }
+			
+			String rsa_key = sdk_path + String(mersdk_rsa_key);
+			if (!da->file_exists(rsa_key)) {
+				r_error = TTR("Cant find RSA key for acces to build engine. Try use SailfishIDE for generate keys.");
+				return false;
+			}
 		}
 
 		/// PARSE XML ------------------------------------------
@@ -968,7 +1116,7 @@ public:
 		xml_parser->close();
 		memdelete(xml_parser);
 		//----App Icon------------------------------------------------
-
+		// TODO: check all app icons 
 		String icon = ProjectSettings::get_singleton()->get("application/config/icon");
 		bool result = true;
 		String suffix = icon.right(icon.length() - 3).to_lower();
@@ -1001,6 +1149,12 @@ public:
 			}
 		}
 
+		String orgname = String(p_preset->get(prop_sailjail_organization));
+		if( orgname.empty() ) {
+			r_error += TTR("Organization name should be reverse domain name, like: org.godot");
+			return false;
+		}
+
 		String export_path = get_absolute_export_path(p_preset->get_export_path());
 		print_verbose( String("Export path: ") + export_path );
 		if (!shared_home.empty() && export_path.find(shared_home) >= 0) {
@@ -1028,7 +1182,6 @@ public:
 
 		EditorProgress ep("export", "Exporting for SailfishOS", 100, true);
 
-		//        String src_binary;
 		String sdk_path = p_preset->get(prop_sailfish_sdk_path);
 		String sdk_configs_path = OS::get_singleton()->get_config_path();
 		String sfdk_tool = get_sfdk_path(p_preset);
@@ -1121,7 +1274,7 @@ public:
 				result_cmd += String(" ") + args[i];
 			print_verbose(result_cmd);
 		}
-		//        int result = EditorNode::get_singleton()->execute_and_show_output(TTR("Run sfdk tool"), sfdk_tool, args, true, false);
+		//int result = EditorNode::get_singleton()->execute_and_show_output(TTR("Run sfdk tool"), sfdk_tool, args, true, false);
 		int result = execute_task(sfdk_tool, args, output_list);
 		if (result != 0) {
 			String result_cmd;
