@@ -40,6 +40,7 @@
 
 struct input_absinfo;
 
+// TODO: successfully rewrite to SDL2 joystick 
 class JoypadLinux {
 public:
 	JoypadLinux(InputDefault *in);

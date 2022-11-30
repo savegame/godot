@@ -46,8 +46,8 @@ def can_build():
 
     udev_error = os.system("pkg-config libudev --modversion > /dev/null")
     if(udev_error):
-        print("libudev.pc not found. Install systemd-devel for all your targets in MerSDK")
-        return False;
+        print("libudev.pc not found. Install systemd-devel for all your targets in MerSDK. Joypad support is disabled.")
+        # return False; # not critical
     else:
         print("libudev.pc is found")
 
@@ -161,7 +161,6 @@ def configure(env):
         env.ParseConfig('pkg-config sdl2 --cflags --libs')
     else:
         env.Append(CCFLAGS=["-I" + env["sdl_path"]] )
-    env.ParseConfig('pkg-config libudev --cflags --libs')
     #env.Append(LINKFLAGS=['-Lplatform/sailfish/outputsdl/lib/', '-L/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib', '', '-lSDL2'])
     #env.Append(LIBPATH=['/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib'])
     #env.Append(LIBS=['SDL2'])
@@ -280,15 +279,16 @@ def configure(env):
                 env.ParseConfig('pkg-config libudev --cflags --libs')
             else:
                 print("libudev development libraries not found, disabling udev support")
+        else:
+            print('udev support disabled with flag "udev=no"')
 
     # Linkflags below this line should typically stay the last ones
     if not env['builtin_zlib']:
         env.ParseConfig('pkg-config zlib --cflags --libs')
 
     env.Append(CPPPATH=['#platform/sailfish','#core', '#thirdparty/glad', '#platform/sailfish/outputsdl/include', '#platform/sailfish/SDL_src/src'])
-    # env.Append(CPPFLAGS=['-DSDL_ENABLED', '-DUNIX_ENABLED', '-DOPENGL_ENABLED', '-DGLES_ENABLED', '-DGLES_OVER_ls -lGL'])
     env.Append(CPPFLAGS=['-DSDL_ENABLED', '-DUNIX_ENABLED', '-DGLES_ENABLED', '-DGLES2_ENABLED', '-Wno-strict-aliasing'])
-    env.Append(CPPFLAGS=['-DSAILFISH_ENABLED', '-DJOYDEV_ENABLED', '-DUDEV_ENABLED']) 
+    env.Append(CPPFLAGS=['-DSAILFISH_ENABLED'])  
     env.Append(CPPFLAGS=['-DSAILFISH_FORCE_LANDSCAPE']) 
     # include paths for different versions of SailfishSDK width different SDL2 version  
     env.Append(LIBS=['GLESv2', 'EGL', 'pthread'])
