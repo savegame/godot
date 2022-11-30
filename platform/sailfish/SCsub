@@ -14,9 +14,11 @@ common_sdl = [
     "os_sdl.cpp",
     "key_mapping_sdl.cpp",
     "joypad_linux.cpp",
-    "libudev-so_wrap.c",
     "power_sdl.cpp",
 ]
+
+if env['udev'] :
+    common_sdl.append("libudev-so_wrap.c")
 
 if 'static_sdl' in env:
     common_sdl.append(env['static_sdl'])
