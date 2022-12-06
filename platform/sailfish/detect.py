@@ -30,12 +30,12 @@ def can_build():
     else:
         print("SDL2-devel is found")
 
-    ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
-    if(ar_error):
-        print("libaudioresource-devel not found. Install libaudioresource-devel for all your targets in MerSDK")
-        return False;
-    else:
-        print("libaudioresource-devel is found")
+    # ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
+    # if(ar_error):
+    #     print("libaudioresource-devel not found. Install libaudioresource-devel for all your targets in MerSDK")
+    #     return False;
+    # else:
+    #     print("libaudioresource-devel is found")
 
     glib_error = os.system("pkg-config glib-2.0 --modversion > /dev/null")
     if(glib_error):
@@ -161,20 +161,16 @@ def configure(env):
         env.ParseConfig('pkg-config sdl2 --cflags --libs')
     else:
         env.Append(CCFLAGS=["-I" + env["sdl_path"]] )
-    #env.Append(LINKFLAGS=['-Lplatform/sailfish/outputsdl/lib/', '-L/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib', '', '-lSDL2'])
-    #env.Append(LIBPATH=['/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib'])
-    #env.Append(LIBS=['SDL2'])
-    # env.Append(CPPPATH=['#platform/sailfish/outputsdl/include/SDL2'])
-    # env.ParseConfig('-L/home/src1/Projects/Sailfish/godot/platform/sailfish/outputsdl/lib -lSDL2')
+
     env.Append(CPPPATH=['#platform/sailfish/SDL2-2.0.9/src'])
     env.Append(CPPFLAGS=['-D__SAILFISH_PLATFORM__'])
     env.ParseConfig('pkg-config wayland-client --cflags --libs')
-    ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
-    if(ar_error):
-        env.Prepend(CCFLAGS=['-DDISABLE_LIBAUDIORESOURCE'])
-    else:
-        env.ParseConfig("pkg-config audioresource --cflags --libs")
-        env.ParseConfig("pkg-config glib-2.0 --cflags --libs")
+    # ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
+    # if(ar_error):
+    env.Prepend(CCFLAGS=['-DDISABLE_LIBAUDIORESOURCE'])
+    # else:
+        # env.ParseConfig("pkg-config audioresource --cflags --libs")
+        # env.ParseConfig("pkg-config glib-2.0 --cflags --libs")
 
     if (env['touch']):
         env.Append(CPPFLAGS=['-DTOUCH_ENABLED'])
