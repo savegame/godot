@@ -205,15 +205,11 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 
 	OS::get_singleton()->print("Wait libaudioresource initialization ");
 	while (!is_audio_resource_acquired) {
-		//OS::get_singleton()->print(".");
 		g_main_context_iteration(NULL, false);
-		// process_events();
-		// force_process_input();
 	}
 #else
 	start_audio_driver();
 #endif
-	//OS::get_singleton()->print("\nlibaudioresource initialization finished.\n");
 #endif
 
 	ERR_FAIL_COND_V(!visual_server, ERR_UNAVAILABLE);
