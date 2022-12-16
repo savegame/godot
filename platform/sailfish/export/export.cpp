@@ -53,7 +53,6 @@
 #define prop_editor_tool "export/sailfish/tool"
 #define prop_editor_ssh_tool_path "export/sailfish/ssh_tool_path"
 #define prop_editor_ssh_port "export/sailfish/ssh_port"
-#define prop_editor_pachelf_path "export/sailfish/patchelf_path"
 
 #define prop_sailfish_sdk_path "sailfish_sdk/sdk_path"
 #define prop_custom_binary_arm "custom_binary/arm"
@@ -76,6 +75,7 @@
 #define prop_sailjail_permissions "sialjail_permissions/"
 #define prop_sailjail_enabled "sialjail/enabled"
 #define prop_sailjail_organization "sialjail/organization"
+#define prop_sailjail_application_name "sialjail/application_name"
 #define prop_validator_enable "rpm_validator/enable"
 // aurora os rpm signing properties
 #define prop_aurora_sign_enable "AuroraOS/sign"
@@ -192,8 +192,7 @@ const String desktop_file_sailjail =
 		"[X-Sailjail]\n"
 		"Permissions=%{permissions}\n"
 		"OrganizationName=%{organization}\n"
-		"ApplicationName=%{name}\n";
-// TODO SAILFISH add sailjail
+		"ApplicationName=%{appname}\n";
 
 static void _execute_thread(void *p_ud) {
 	EditorNode::ExecuteThreadArgs *eta = (EditorNode::ExecuteThreadArgs *)p_ud;
@@ -470,6 +469,8 @@ protected:
 		String &data_dir_native = data_dir;
 		String &bin_dir_native = bin_dir;
 #endif
+		String sailjail_organization_name = String(p_preset->get(prop_sailjail_organization));
+
 		Error err;
 		bool is_export_path_exits_in_sdk = false;
 		{
@@ -552,50 +553,23 @@ protected:
 			print_error(String("Cant copy ") + arch_to_text(package.target.arch) + String(" template binary to: ") + binary_result_path);
 			return ERR_CANT_CREATE;
 		}
-		// add rpath to binary
-		String patchelf_tool = EDITOR_GET(prop_editor_pachelf_path);
-		if (!patchelf_tool.empty()) {
-			// FIXME: use patchelf inside mersdk.
-			print_line("Use patchelf to add rpath to binary");
-			args.clear();
-			// for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
-			// 	args.push_back( a->get() );
-			// }
-
-			String libs_path = data_dir_native + separator + package.name + separator + String("lib");
-
-			args.push_back("--set-rpath");
-			args.push_back(libs_path);
-			args.push_back(binary_result_path);
-
-			int result = EditorNode::get_singleton()->execute_and_show_output(TTR("patchelf"), patchelf_tool, args, true, false);
-			if (result != 0) {
-				return ERR_CANT_CREATE;
-			}
-			// copy system udev lib
-			// args.clear();
-			// for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
-			// 	args.push_back( a->get() );
-			// }
-			// args.push_back("sb2");
-			// args.push_back("-t");
-			// args.push_back(target_string);
-			// args.push_back("bash");
-			// args.push_back("-c");
-			// String rsync_command = String("cp /usr/lib");
-			// if( package.target.arch == arch_aarch64 )
-			// 	rsync_command = rsync_command + String("64");
-			// rsync_command = rsync_command + String("/libudev.so.1.6.10 "+ sdk_shared_path + export_path_part + String("/BUILD") + libs_path+"/libudev.so.1");
-			// args.push_back(rsync_command);
-			// result = EditorNode::get_singleton()->execute_and_show_output(TTR("copy libudev.so.1"), sfdk_tool, args, true, false);
-			// if (result != 0) {
-			// 	return ERR_CANT_CREATE;
-			// }
-		}
 
 		ep.step(String("create name.pck file.").replace("name", package.name), progress_from + (++current_step) * progress_step);
 		pck_path = broot_path + build_folder + data_dir_native + separator + package.name + separator + package.name + String(".pck");
+		// use custom data path
+		bool use_custom_dir = ProjectSettings::get_singleton()->get("application/config/use_custom_user_dir");
+		String custom_path = String(ProjectSettings::get_singleton()->get("application/config/custom_user_dir_name"));
+		ProjectSettings::get_singleton()->set("application/config/use_custom_user_dir",true);
+		ProjectSettings::get_singleton()->set(
+				"application/config/custom_user_dir_name", 
+				package.name
+					.replace("harbour-", sailjail_organization_name + String("/"))
+					.replace(sailjail_organization_name + String("."), sailjail_organization_name + String("/")) 
+			);
 		err = export_pack(p_preset, p_debug, pck_path);
+		ProjectSettings::get_singleton()->set("application/config/use_custom_user_dir",use_custom_dir);
+		ProjectSettings::get_singleton()->set("application/config/custom_user_dir_name", custom_path);
+
 		if (err != Error::OK) {
 			print_error(String("Cant create *.pck: ") + pck_path);
 			return err;
@@ -640,7 +614,8 @@ protected:
 			file_text = file_text.replace("%{_bindir}", bin_dir);
 			if (sailjail_enabled) {
 				file_text = file_text + desktop_file_sailjail.replace("%{name}", package.name);
-				file_text = file_text.replace("%{organization}", String(p_preset->get(prop_sailjail_organization)));
+				file_text = file_text.replace("%{organization}", sailjail_organization_name);
+				file_text = file_text.replace("%{appname}", package.name.replace("harbour-","").replace(sailjail_organization_name + String("."),""));
 				// collect sailjail permissions
 				int permission_num = 0;
 				String permissions;
@@ -1464,7 +1439,8 @@ void register_sailfish_exporter() {
 	}
 
 	Ref<EditorExportPlatformSailfish> platform;
-	Ref<EditorExportPlatformPC> p;
+	// Ref<EditorExportPlatformPC> p;
+	
 	platform.instance();
 
 	Ref<Image> img = memnew(Image(_sailfish_logo));
@@ -1497,12 +1473,6 @@ void register_sailfish_exporter() {
 
 	EDITOR_DEF(prop_editor_ssh_port, "2222");
 	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::INT, prop_editor_ssh_port, PROPERTY_HINT_RANGE, "1,40096,1,false"));
-#ifdef WINDOWS_ENABLED
-	EDITOR_DEF(prop_editor_pachelf_path, "");
-#else
-	EDITOR_DEF(prop_editor_pachelf_path, "/usr/bin/patchelf");
-#endif
-	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::STRING, prop_editor_pachelf_path, PROPERTY_HINT_GLOBAL_FILE, exe_ext));
-	//r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_prefix, PROPERTY_HINT_ENUM, "/usr,/home/nemo/.local"), "/usr"));
+
 	EditorExport::get_singleton()->add_export_platform(platform);
 }
