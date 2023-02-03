@@ -31,23 +31,28 @@
 
 #include "export.h"
 
-#include "core/dictionary.h"
+// #include "core/dictionary.h"
 #include "core/io/marshalls.h"
 #include "core/io/xml_parser.h"
 #include "core/io/zip_io.h"
-#include "core/os/dir_access.h"
-#include "core/os/file_access.h"
+#include "core/io/dir_access.h"
+#include "core/io/file_access.h"
 #include "core/os/os.h"
 #include "core/os/thread.h"
-#include "core/project_settings.h"
+#include "core/config/project_settings.h"
 #include "core/version.h"
-#include "editor/editor_export.h"
+#include "editor/export/editor_export.h"
+#include "editor/export/project_export.h"
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
 #include "main/main.h"
 #include "modules/regex/regex.h"
 #include "platform/sailfish/logo.gen.h"
 #include "scene/resources/texture.h"
+
+#define SFDK_MINIMUM_VERSION_MAJOR 3
+#define SFDK_MINIMUM_VERSION_MINOR 9
+#define SFDK_MINIMUM_VERSION_PATCH 6
 
 #define prop_editor_sdk_path "export/sailfish/sdk_path"
 #define prop_editor_tool "export/sailfish/tool"
@@ -196,7 +201,7 @@ const String desktop_file_sailjail =
 
 static void _execute_thread(void *p_ud) {
 	EditorNode::ExecuteThreadArgs *eta = (EditorNode::ExecuteThreadArgs *)p_ud;
-	Error err = OS::get_singleton()->execute(eta->path, eta->args, true, NULL, &eta->output, &eta->exitcode, true, &eta->execute_output_mutex);
+	Error err = OS::get_singleton()->execute(eta->path, eta->args, &eta->output, &eta->exitcode, true, &eta->execute_output_mutex, true);
 	print_verbose("Thread exit status: " + itos(eta->exitcode));
 	if (err != OK) {
 		eta->exitcode = err;
@@ -240,9 +245,9 @@ class EditorExportPlatformSailfish : public EditorExportPlatform {
 			target_template = "";
 			addversion = "";
 			version[0] = 4;
-			version[1] = 3;
+			version[1] = 4;
 			version[2] = 0;
-			version[3] = 12;
+			version[3] = 68;
 		}
 
 		String target_template;
@@ -273,7 +278,7 @@ protected:
 			args.push_back(target.version[i]);
 		bool error;
 		String addversion = "-";
-		if( !target.addversion.empty() )
+		if( !target.addversion.is_empty() )
 			addversion = target.addversion + addversion;
 		return target.name + String("-%d.%d.%d.%d").sprintf(args, &error) + addversion + arch_to_text(target.arch) + String(".default");
 	}
@@ -310,23 +315,35 @@ protected:
 		return sdk_configs_path;
 	}
 
+	int string_find_last(const String &text, const String &search) const {
+		int current_pos = -1;
+		while(true) {
+			int pos = text.find(search, current_pos);
+			if (pos == -1) {
+				return current_pos;
+			}
+			current_pos = pos;
+		}
+		return current_pos;
+	}
+
 	String get_absolute_export_path(const String &realitive_export_path) const {
 		String export_path = realitive_export_path;
 		String project_path = ProjectSettings::get_singleton()->get_resource_path();
 
-		if (project_path.find_last(separator) == project_path.length() - 1)
-			project_path = project_path.left(project_path.find_last(separator));
+		if (separator == String(&project_path[project_path.length() - 1]))
+			project_path = project_path.left(project_path.length() - 1);
 		// make from realitive path an absolute path
-		if (export_path.find(String(".") + separator) == 0) {
+		if (export_path.begins_with(String(".") + separator)) {
 			export_path = project_path + separator + export_path.substr(2, export_path.length() - 2);
 		} else {
 			int count_out_dir = 0;
-			while (export_path.find(String("..") + separator) == 0) {
+			while (export_path.begins_with(String("..") + separator)) {
 				count_out_dir++;
 				export_path = export_path.substr(3, export_path.length() - 3);
 			}
 			for (int i = 0; i < count_out_dir; i++) {
-				int pos = project_path.find_last(separator);
+				int pos = string_find_last(project_path, separator);
 				if (pos >= 0) {
 					project_path = project_path.left(pos);
 				}
@@ -421,19 +438,19 @@ protected:
 			case arch_armv7hl:
 				if (p_debug)
 					export_template = String(p_preset->get(prop_custom_binary_arm_debug));
-				if (export_template.empty())
+				if (export_template.is_empty())
 					export_template = String(p_preset->get(prop_custom_binary_arm));
 				break;
 			case arch_aarch64:
 				if (p_debug)
 					export_template = String(p_preset->get(prop_custom_binary_aarch64_debug));
-				if (export_template.empty())
+				if (export_template.is_empty())
 					export_template = String(p_preset->get(prop_custom_binary_aarch64));
 				break;
 			case arch_x86:
 				if (p_debug)
 					export_template = String(p_preset->get(prop_custom_binary_x86_debug));
-				if (export_template.empty())
+				if (export_template.is_empty())
 					export_template = String(p_preset->get(prop_custom_binary_x86));
 				break;
 			default:
@@ -441,7 +458,7 @@ protected:
 				return ERR_CANT_CREATE;
 		}
 
-		if (export_template.empty()) {
+		if (export_template.is_empty()) {
 			print_error(String("No ") + arch_to_text(package.target.arch) + String(" template setuped"));
 			return ERR_CANT_CREATE;
 		}
@@ -450,7 +467,7 @@ protected:
 		String export_path = get_absolute_export_path(p_preset->get_export_path());
 		String broot_path = export_path + String("_buildroot");
 		String build_folder = separator + ("BUILD") + separator;
-		String rpm_prefix_path = broot_path.left(broot_path.find_last(separator));
+		String rpm_prefix_path = broot_path.left(string_find_last(broot_path, separator));
 		String export_path_part;
 		String sdk_shared_path;
 		String rpm_dir_path = broot_path + separator + String("rpm");
@@ -494,7 +511,7 @@ protected:
 			else
 				args.push_back(String("if [ -d \"") + export_path + String("\" ]; then echo returncode_true; exit 0; else echo returncode_false; exit 1; fi"));
 
-			err = OS::get_singleton()->execute(sfdk_tool, args, true, nullptr, &pipe, &exitcode, false /*read stderr*/);
+			err = OS::get_singleton()->execute(sfdk_tool, args, &pipe, &exitcode, true, nullptr, false /*read stderr*/);
 
 			if (err == OK) {
 				if (exitcode == 0 || String("returncode_true") == pipe) {
@@ -505,7 +522,7 @@ protected:
 				print_line(pipe);
 			}
 		}
-		if (!shared_home.empty() && export_path.find(shared_home) == 0) {
+		if (!shared_home.is_empty() && export_path.find(shared_home) == 0) {
 			// print_verbose(String("sfdk") + result_string);
 			// String execute_binary = sfdk_tool;
 			export_path_part = export_path.substr(shared_home.length(), export_path.length() - shared_home.length()).replace(separator, "/") + String("_buildroot");
@@ -513,7 +530,7 @@ protected:
 				sdk_shared_path = shared_home;
 			else
 				sdk_shared_path = String("/home/mersdk/share");
-		} else if (!shared_src.empty() && export_path.find(shared_src) == 0) {
+		} else if (!shared_src.is_empty() && export_path.find(shared_src) == 0) {
 			export_path_part = export_path.substr(shared_src.length(), export_path.length() - shared_src.length()).replace(separator, "/") + String("_buildroot");
 			if (is_export_path_exits_in_sdk)
 				sdk_shared_path = shared_src;
@@ -524,7 +541,7 @@ protected:
 			return ERR_CANT_CREATE;
 		}
 
-		DirAccessRef broot = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+		Ref<DirAccess> broot = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 		const String directories[] = {
 			separator + String("SPECS"),
 			build_folder + data_dir_native + separator + package.name + separator + String("lib"),
@@ -577,7 +594,7 @@ protected:
 
 		ep.step(String("generate ") + package.name + String(".spec file"), progress_from + (++current_step) * progress_step);
 		{
-			FileAccessRef spec_file = FileAccess::open(spec_file_path, FileAccess::WRITE, &err);
+			Ref<FileAccess> spec_file = FileAccess::open(spec_file_path, FileAccess::WRITE, &err);
 			if (err != Error::OK) {
 				print_error(String("Cant create *.spec: ") + spec_file_path);
 				return ERR_CANT_CREATE;
@@ -597,13 +614,12 @@ protected:
 
 			spec_file->store_string(spec_text);
 			spec_file->flush();
-			spec_file->close();
 		}
 
 		ep.step(String("generate ") + package.name + String(".desktop file"), progress_from + (++current_step) * progress_step);
 		{
 			//desktop_file_path = broot_path + desktop_file_path;
-			FileAccessRef desktop_file = FileAccess::open(desktop_file_path, FileAccess::WRITE, &err);
+			Ref<FileAccess> desktop_file = FileAccess::open(desktop_file_path, FileAccess::WRITE, &err);
 			if (err != Error::OK) {
 				print_error(String("Cant create *.desktop: ") + desktop_file_path);
 				return ERR_CANT_CREATE;
@@ -620,8 +636,8 @@ protected:
 				int permission_num = 0;
 				String permissions;
 				// minimum required permission
-				while (!sailjail_minimum_required_permissions[permission_num].empty()) {
-					if (permissions.empty())
+				while (!sailjail_minimum_required_permissions[permission_num].is_empty()) {
+					if (permissions.is_empty())
 						permissions = sailjail_minimum_required_permissions[permission_num];
 					else
 						permissions = permissions + String(";") + sailjail_minimum_required_permissions[permission_num];
@@ -629,10 +645,10 @@ protected:
 				}
 				// all other permissions
 				permission_num = 0;
-				while (!sailjail_permissions[permission_num].empty()) {
+				while (!sailjail_permissions[permission_num].is_empty()) {
 					if (!p_preset->get(String(prop_sailjail_permissions) + sailjail_permissions[permission_num++]))
 						continue;
-					if (permissions.empty())
+					if (permissions.is_empty())
 						permissions = sailjail_permissions[permission_num - 1];
 					else
 						permissions = permissions + String(";") + sailjail_permissions[permission_num - 1];
@@ -641,7 +657,6 @@ protected:
 			}
 			desktop_file->store_string(file_text);
 			desktop_file->flush();
-			desktop_file->close();
 		}
 
 		ep.step(String("copy project icons"), progress_from + (++current_step) * progress_step);
@@ -670,7 +685,7 @@ protected:
 			String build_script;
 			String buid_script_path = broot_path + separator + String("buildscript.sh");
 			{ //
-				FileAccessRef script_file = FileAccess::open(buid_script_path, FileAccess::WRITE, &err);
+				Ref<FileAccess> script_file = FileAccess::open(buid_script_path, FileAccess::WRITE, &err);
 				if (err != Error::OK) {
 					print_error(String("Cant create : ") + buid_script_path);
 					return ERR_CANT_CREATE;
@@ -685,7 +700,6 @@ protected:
 				build_script = file_text;
 				script_file->store_string(file_text);
 				script_file->flush();
-				script_file->close();
 			}
 
 			// try use shell -------------------------------
@@ -723,9 +737,9 @@ protected:
 			print_verbose("Move result RPMS to outside folder");
 			{
 				String build_result_dir = broot_path + separator + String("RPMS") + separator + arch_to_text(package.target.arch);
-				DirAccessRef move_result = DirAccess::create_for_path(build_result_dir);
+				Ref<DirAccess> move_result = DirAccess::create_for_path(build_result_dir);
 				String result_rpm_name = package.name + String("-") + package.version + String("-") + package.release + String(".") + arch_to_text(package.target.arch) + String(".rpm");
-				if (!move_result)
+				if (move_result.is_null())
 					return ERR_CANT_CREATE;
 				if (move_result->exists(rpm_prefix_path + separator + result_rpm_name))
 					move_result->remove(rpm_prefix_path + separator + result_rpm_name);
@@ -800,7 +814,7 @@ protected:
 		}
 		ep.step(String("remove temp directory"), progress_from + (++current_step) * progress_step);
 		{
-			DirAccessRef rmdir = DirAccess::open(broot_path, &err);
+			Ref<DirAccess> rmdir = DirAccess::open(broot_path, &err);
 			if (err != Error::OK) {
 				print_error("cant open dir");
 			}
@@ -819,21 +833,24 @@ public:
 		// logo->create_from_image(img);
 	}
 
-	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) override {
+	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) const override {
 		//        print_verbose("get_preset_features, path " + p_preset->get_export_path() );
 		String driver = ProjectSettings::get_singleton()->get("rendering/quality/driver/driver_name");
-		if (driver == "GLES2") {
-			r_features->push_back("etc");
-		} else if (driver == "GLES3") {
+		// if (driver == "GLES2") {
+		// 	r_features->push_back("etc");
+		// } else 
+		if (driver == "GLES3") {
 			r_features->push_back("etc2");
 			r_features->push_back("s3tc");
 			if (ProjectSettings::get_singleton()->get("rendering/quality/driver/fallback_to_gles2")) {
 				r_features->push_back("etc");
 			}
+		} else if (driver == "vulkan") {
+			print_verbose("Vulkan!");
 		}
 	}
 
-	virtual void get_platform_features(List<String> *r_features) override {
+	virtual void get_platform_features(List<String> *r_features) const override {
 		r_features->push_back("mobile");
 		r_features->push_back(get_os_name());
 	}
@@ -846,11 +863,11 @@ public:
 		return "SailfishOS";
 	}
 
-	void set_logo(Ref<Texture> logo) {
+	void set_logo(Ref<Texture2D> logo) {
 		this->logo = logo;
 	}
 
-	Ref<Texture> get_logo() const override {
+	Ref<Texture2D> get_logo() const override {
 		return logo;
 	}
 
@@ -884,7 +901,7 @@ public:
 		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, prop_sailjail_enabled), true));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_sailjail_organization, PROPERTY_HINT_PLACEHOLDER_TEXT, "org.godot"), ""));
 		int permission_num = 0;
-		while (!sailjail_permissions[permission_num].empty()) {
+		while (!sailjail_permissions[permission_num].is_empty()) {
 			r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, String(prop_sailjail_permissions) + sailjail_permissions[permission_num++]), false));
 		}
 
@@ -895,7 +912,11 @@ public:
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_aurora_sign_cert, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
 	}
 
-	bool can_export(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override {
+	bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const override {
+		return true;
+	}
+
+	bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override {
 		String arm_template;
 		String x86_template;
 		String aarch64_template;
@@ -933,14 +954,14 @@ public:
 		print_verbose(String("x86_binary: ") + x86_template);
 		print_verbose(String("aarch64_binary: ") + aarch64_template);
 
-		if (arm_template.empty() && x86_template.empty() && aarch64_template.empty()) {
+		if (arm_template.is_empty() && x86_template.is_empty() && aarch64_template.is_empty()) {
 			r_error = TTR("Cant export without SailfishOS export templates");
 			r_missing_templates = true;
 			return false;
 		} else {
 			bool has_tamplate = false;
-			if (!arm_template.empty()) {
-				FileAccessRef template_file = FileAccess::open(arm_template, FileAccess::READ, &err);
+			if (!arm_template.is_empty()) {
+				Ref<FileAccess> template_file = FileAccess::open(arm_template, FileAccess::READ, &err);
 				if (err != Error::OK) {
 					arm_template.clear();
 				} else {
@@ -949,16 +970,16 @@ public:
 				}
 			}
 
-			if (!x86_template.empty()) {
-				FileAccessRef template_file = FileAccess::open(x86_template, FileAccess::READ, &err);
+			if (!x86_template.is_empty()) {
+				Ref<FileAccess> template_file = FileAccess::open(x86_template, FileAccess::READ, &err);
 				if (err != Error::OK) {
 					x86_template.clear();
 				} else
 					has_tamplate = true;
 			}
 
-			if (!aarch64_template.empty()) {
-				FileAccessRef template_file = FileAccess::open(aarch64_template, FileAccess::READ, &err);
+			if (!aarch64_template.is_empty()) {
+				Ref<FileAccess> template_file = FileAccess::open(aarch64_template, FileAccess::READ, &err);
 				if (err != Error::OK) {
 					aarch64_template.clear();
 				} else
@@ -986,15 +1007,15 @@ public:
 		if (sdk_tool == SDKConnectType::tool_ssh) {
 			String rsa_key_path = sdk_path;
 			rsa_key_path += String("/vmshare/ssh/private_keys/engine/mersdk");
-			DirAccessRef da = DirAccess::open(sdk_path, &err);
-			if (!da || !da->file_exists(rsa_key_path)) {
+			Ref<DirAccess> da = DirAccess::open(sdk_path, &err);
+			if (da.is_null() || !da->file_exists(rsa_key_path)) {
 				r_error = TTR("Cant find RSA key for access to build engine:\n") + rsa_key_path;
 				return false;
 			}
 		}
 
-		// check SDK version, minimum is 3.0.7
-		FileAccessRef sdk_release_file = FileAccess::open(sdk_path + separator + String("sdk-release"), FileAccess::READ, &err);
+		// check SDK version, minimum is 3.9.6
+		Ref<FileAccess> sdk_release_file = FileAccess::open(sdk_path + separator + String("sdk-release"), FileAccess::READ, &err);
 
 		if (err != Error::OK) {
 			r_error = TTR("Wrong SailfishSDK path: cant find \"sdk-release\" file\n");
@@ -1012,26 +1033,26 @@ public:
 
 			if (splitted[0] == String("SDK_RELEASE")) {
 				RegEx regex("([0-9]+)\\.([0-9]+)\\.([0-9]+)");
-				Array matches = regex.search_all(splitted[1]);
+				TypedArray<RegExMatch> matches = regex.search_all(splitted[1]);
 				// print_verbose( String("Matches size: ") + Variant(matches.size()) );
 				if (matches.size() == 1) {
-					Ref<RegExMatch> rem = ((Ref<RegExMatch>)matches[0]);
-					Array names = rem->get_strings();
+					Ref<RegExMatch> rem = matches[0];
+					PackedStringArray names = rem->get_strings();
 					if (names.size() >= 4) {
-						if (int(names[1]) > 3) {
+						if (names[1].to_int() > 3) {
 							wrong_sdk_version = false;
-						} else if (int(names[1]) < 3) {
-							r_error = TTR("Minimum SailfishSDK version is 3.0.7, current is ") + current_line.split("=")[1];
+						} else if (names[1].to_int() < SFDK_MINIMUM_VERSION_MAJOR) {
+							r_error = TTR("Minimum SailfishSDK version is 3.9.6, current is ") + current_line.split("=")[1];
 							wrong_sdk_version = true;
-						} else if (int(names[2]) > 0) {
+						} else if (names[2].to_int() > SFDK_MINIMUM_VERSION_MINOR) {
 							wrong_sdk_version = false;
-						} else if (int(names[3]) < 7) {
-							r_error = TTR("Minimum SailfishSDK version is 3.0.7, current is ") + current_line.split("=")[1];
+						} else if (names[3].to_int() < SFDK_MINIMUM_VERSION_PATCH) {
+							r_error = TTR("Minimum SailfishSDK version is 3.9.6, current is ") + current_line.split("=")[1];
 							wrong_sdk_version = true;
 						}
-						sdk_version.set(0, int(names[1]));
-						sdk_version.set(1, int(names[2]));
-						sdk_version.set(2, int(names[3]));
+						sdk_version.set(0, names[1].to_int());
+						sdk_version.set(1, names[2].to_int());
+						sdk_version.set(2, names[3].to_int());
 					}
 				} else {
 					r_error = TTR("Cant parse \"sdk-release\" file in SailfishSDK directory");
@@ -1041,32 +1062,30 @@ public:
 				sdk_config_dir = splitted[1];
 			}
 		}
-		sdk_release_file->close();
+
 		if (wrong_sdk_version) {
 			//r_error = TTR("Wrong SailfishSDK path: cant find \"sdk-release\" file");
 			return false;
 		}
 
-		String sfdk_path;
-		;
-
 		//  Chek if tool exists --------------------------------
 
-		DirAccessRef da = DirAccess::open(sdk_path, &err);
+		Ref<DirAccess> da = DirAccess::open(sdk_path, &err);
+		String sfdk_path;
 
 		if (sdk_tool == SDKConnectType::tool_sfdk) {
 			sfdk_path = sdk_path + String("/bin/sfdk");
 #ifdef WINDOWS_ENABLED
 			sfdk_path += String(".exe");
 #endif
-			if (err != Error::OK || !da || !da->file_exists(sfdk_path)) {
+			if (err != Error::OK || da.is_null() || !da->file_exists(sfdk_path)) {
 				r_error = TTR("Wrong SailfishSDK path or sfdk tool not exists");
 				return false;
 			}
 		} else {
 			sfdk_path = EDITOR_GET(prop_editor_ssh_tool_path);
 
-			if (err != Error::OK || !da || !da->file_exists(sfdk_path)) {
+			if (err != Error::OK || da.is_null() || !da->file_exists(sfdk_path)) {
 				r_error = TTR("Wrong SSH tool path. Setup it in Editor->Settings->Export->Sailfish");
 				return false;
 			}
@@ -1100,10 +1119,11 @@ public:
 					continue;
 				}
 				if (xml_parser->has_attribute("key")) {
-					if (xml_parser->get_attribute_value("key") == String("SharedHome")) {
+					String value = xml_parser->get_named_attribute_value("key");
+					if (value == String("SharedHome")) {
 						xml_parser->read();
 						shared_home = xml_parser->get_node_data();
-					} else if (xml_parser->get_attribute_value("key") == String("SharedSrc")) {
+					} else if (value == String("SharedSrc")) {
 						xml_parser->read();
 						shared_src = xml_parser->get_node_data();
 					}
@@ -1131,13 +1151,13 @@ public:
 		{
 			String name; // = packname;
 			RegEx regex("([a-z_\\-0-9\\.]+)");
-			Array matches = regex.search_all(packname);
+			TypedArray<RegExMatch> matches = regex.search_all(packname);
 			// name.clear();
 			for (int mi = 0; mi < matches.size(); mi++) {
-				Ref<RegExMatch> rem = ((Ref<RegExMatch>)matches[mi]);
-				Array names = rem->get_strings();
+				Ref<RegExMatch> rem = matches[mi];
+				PackedStringArray names = rem->get_strings();
 				for (int n = 1; n < names.size(); n++) {
-					name += String(names[n]);
+					name += names[n];
 				}
 			}
 			if (packname != name) {
@@ -1147,14 +1167,14 @@ public:
 		}
 
 		String orgname = String(p_preset->get(prop_sailjail_organization));
-		if (orgname.empty()) {
+		if (orgname.is_empty()) {
 			r_error += TTR("Organization name should be reverse domain name, like: org.godot");
 			return false;
 		}
 
 		String export_path = get_absolute_export_path(p_preset->get_export_path());
 		print_verbose(String("Export path: ") + export_path);
-		if ( shared_home.empty() || shared_src.empty() || 
+		if ( shared_home.is_empty() || shared_src.is_empty() || 
 			 (export_path.find(shared_home) < 0 && export_path.find(shared_src) < 0) ) {
 			result = false;
 			r_error += TTR("Export path is outside of Shared Home in SailfishSDK (choose export path inside shared home):\nSharedHome: ") + shared_home + String("\nShareedSource: ") + shared_src;
@@ -1163,7 +1183,7 @@ public:
 		if (p_preset->get(prop_aurora_sign_enable)) {
 			String key_path = p_preset->get(prop_aurora_sign_key);
 			String cert_path = p_preset->get(prop_aurora_sign_cert);
-			if (key_path.empty() || cert_path.empty()) {
+			if (key_path.is_empty() || cert_path.is_empty()) {
 				r_error += TTR("Signing enabled, but has empty paths for signing key and cert.");
 				result = false;
 			} else if (!da->file_exists(key_path) || !da->file_exists(cert_path)) {
@@ -1207,43 +1227,43 @@ public:
 
 		if (p_debug) {
 			arm_template = String(p_preset->get(prop_custom_binary_arm_debug));
-			if (arm_template.empty()) {
+			if (arm_template.is_empty()) {
 				print_error("Debug armv7hl template path is empty. Try use release template.");
 			}
 		}
-		if (arm_template.empty()) {
+		if (arm_template.is_empty()) {
 			arm_template = String(p_preset->get(prop_custom_binary_arm));
-			if (arm_template.empty()) {
+			if (arm_template.is_empty()) {
 				print_error("No armv7hl template setuped");
 			}
 		}
 
 		if (p_debug) {
 			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64_debug));
-			if (aarch64_template.empty()) {
+			if (aarch64_template.is_empty()) {
 				print_error("Debug aarch64 template path is empty. Try use release template.");
 			}
 		}
-		if (aarch64_template.empty()) {
+		if (aarch64_template.is_empty()) {
 			aarch64_template = String(p_preset->get(prop_custom_binary_aarch64));
-			if (aarch64_template.empty()) {
+			if (aarch64_template.is_empty()) {
 				print_error("No aarch64 template setuped");
 			}
 		}
 
 		if (p_debug) {
 			x86_template = String(p_preset->get(prop_custom_binary_x86_debug));
-			if (x86_template.empty()) {
+			if (x86_template.is_empty()) {
 				print_error("Debug i486 template path is empty. Try use release template.");
 			}
 		}
-		if (x86_template.empty()) {
+		if (x86_template.is_empty()) {
 			x86_template = String(p_preset->get(prop_custom_binary_x86));
-			if (x86_template.empty()) {
+			if (x86_template.is_empty()) {
 				print_error("No i486 template setuped");
 			}
 		}
-		if (arm_template.empty() && aarch64_template.empty() && x86_template.empty()) {
+		if (arm_template.is_empty() && aarch64_template.is_empty() && x86_template.is_empty()) {
 			return ERR_CANT_CREATE;
 		}
 
@@ -1296,25 +1316,25 @@ public:
 				String entry = e->get();
 				print_verbose(entry);
 				RegEx regex(".*(SailfishOS|AuroraOS)-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)(-base)?-(armv7hl|i486|aarch64).*");
-				Array matches = regex.search_all(entry);
+				TypedArray<RegExMatch> matches = regex.search_all(entry);
 				// print_verbose( String("Matches size: ") + Variant(matches.size()) );
 				for (int mi = 0; mi < matches.size(); mi++) {
 					MerTarget target;
-					Ref<RegExMatch> rem = ((Ref<RegExMatch>)matches[mi]);
-					Array names = rem->get_strings();
+					Ref<RegExMatch> rem = matches[mi];
+					PackedStringArray names = rem->get_strings();
 					// print_verbose( String("match[0] strings size: ") + Variant(names.size()) );
 					if (names.size() < 8) {
 						print_verbose("Wrong match");
 						for (int d = 0; d < names.size(); d++) {
-							print_verbose(String("match[0].strings[") + Variant(d) + String("]: ") + String(names[d]));
+							print_verbose(String("match[0].strings[") + String(Variant(d)) + String("]: ") + String(names[d]));
 						}
 						target.arch = arch_unkown;
 					} else {
 						target.name = names[1];
-						target.version[0] = int(names[2]);
-						target.version[1] = int(names[3]);
-						target.version[2] = int(names[4]);
-						target.version[3] = int(names[5]);
+						target.version[0] = names[2].to_int();
+						target.version[1] = names[3].to_int();
+						target.version[2] = names[4].to_int();
+						target.version[3] = names[5].to_int();
 						target.addversion = names[6];
 						String target_arch = names[7];
 
@@ -1375,21 +1395,21 @@ public:
 				pack.release = p_preset->get(prop_version_release);
 				pack.description = ProjectSettings::get_singleton()->get("application/config/description");
 				pack.launcher_name = p_preset->get(prop_package_launcher_name);
-				if (pack.launcher_name.empty())
+				if (pack.launcher_name.is_empty())
 					pack.launcher_name = ProjectSettings::get_singleton()->get("application/config/name");
 				pack.name = p_preset->get(prop_package_name);
 				if (pack.name.find("$genname") >= 0) {
 					String name = ProjectSettings::get_singleton()->get("application/config/name");
 					name = name.to_lower();
 					RegEx regex("([a-z_\\-0-9\\.]+)");
-					Array matches = regex.search_all(name);
+					TypedArray<RegExMatch> matches = regex.search_all(name);
 					// print_verbose( String("Matches size: ") + Variant(matches.size()) );
 					name.clear();
 					for (int mi = 0; mi < matches.size(); mi++) {
-						Ref<RegExMatch> rem = ((Ref<RegExMatch>)matches[mi]);
-						Array names = rem->get_strings();
+						Ref<RegExMatch> rem = matches[mi];
+						PackedStringArray names = rem->get_strings();
 						for (int n = 1; n < names.size(); n++) {
-							name += String(names[n]);
+							name += names[n];
 						}
 					}
 					pack.name = pack.name.replace("$genname", name);
@@ -1398,7 +1418,7 @@ public:
 				// TODO arch should be generated from current MerTarget
 				pack.target = it->get();
 
-				if (pack.target.target_template.empty()) {
+				if (pack.target.target_template.is_empty()) {
 					print_error(String("Target ") + mertarget_to_text(it->get()) + String(" template path is empty. Skip"));
 					continue;
 				}
@@ -1420,11 +1440,11 @@ public:
 		return Error::OK;
 	}
 
-	void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) override {
+	void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, HashSet<String> &p_features) override {
 	}
 
 protected:
-	Ref<ImageTexture> logo;
+	Ref<Texture2D> logo;
 	mutable String shared_home;
 	mutable String shared_src;
 	mutable String sdk_config_dir;
@@ -1439,14 +1459,9 @@ void register_sailfish_exporter() {
 	}
 
 	Ref<EditorExportPlatformSailfish> platform;
-	// Ref<EditorExportPlatformPC> p;
-	
-	platform.instance();
-
+	platform.instantiate();
 	Ref<Image> img = memnew(Image(_sailfish_logo));
-	Ref<ImageTexture> logo;
-	logo.instance();
-	logo->create_from_image(img);
+	Ref<ImageTexture> logo = ImageTexture::create_from_image(img);
 	platform->set_logo(logo);
 
 	EDITOR_DEF(prop_editor_sdk_path, "");
@@ -1460,7 +1475,7 @@ void register_sailfish_exporter() {
 	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::STRING, prop_editor_tool, PROPERTY_HINT_ENUM, "sfdk,ssh"));
 
 #ifndef WINDOWS_ENABLED
-	DirAccessRef da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 	if (da->file_exists("/usr/bin/ssh"))
 		EDITOR_DEF(prop_editor_ssh_tool_path, "/usr/bin/ssh");
 	else
