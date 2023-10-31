@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-// #include <GLES2/gl2.h>
+#include "servers/display_server.h"
 #include "helper_macros.h"
 #include <EGL/egl.h>
 #include <SDL_opengles2.h>
@@ -50,7 +50,7 @@
 struct ContextGL_SDL_Private {
 	SDL_GLContext gl_context;
 	int display_index;
-	OS::ScreenOrientation allowed_orientation_enum;
+	DisplayServer::ScreenOrientation allowed_orientation_enum;
 	std::string allowed_orientation_str;
 	int wl_allowed_orientation;
 };
@@ -184,7 +184,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 #endif
 	mprint_verbose2("OS current screen orientation is \"%i\"\n", screen_orientation);
 	switch (p->allowed_orientation_enum) {
-		case OS::SCREEN_SENSOR_LANDSCAPE: {
+		case DisplayServer::SCREEN_SENSOR_LANDSCAPE: {
 			switch (sdl_orientation) {
 				case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_LANDSCAPEORIENTATION);
@@ -193,8 +193,8 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_270;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_Screen_orientation OS::SCREEN_LANDSCAPE\n");
-					screen_orientation = (OS::SCREEN_LANDSCAPE);
+						OS::get_singleton()->print("set_Screen_orientation DisplayServer::SCREEN_LANDSCAPE\n");
+					screen_orientation = (DisplayServer::SCREEN_LANDSCAPE);
 					break;
 				case SDL_ORIENTATION_LANDSCAPE:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION);
@@ -203,12 +203,12 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_90;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_Screen_orientation OS::SCREEN_REVERSE_LANDSCAPE\n");
-					screen_orientation = (OS::SCREEN_REVERSE_LANDSCAPE);
+						OS::get_singleton()->print("set_Screen_orientation DisplayServer::SCREEN_REVERSE_LANDSCAPE\n");
+					screen_orientation = (DisplayServer::SCREEN_REVERSE_LANDSCAPE);
 					break;
 			}
 		} break;
-		case OS::SCREEN_SENSOR_PORTRAIT: {
+		case DisplayServer::SCREEN_SENSOR_PORTRAIT: {
 			switch (sdl_orientation) {
 				case SDL_ORIENTATION_PORTRAIT:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_PORTRAITORIENTATION);
@@ -217,8 +217,8 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_screen_orientation OS::SCREEN_PORTRAIT\n");
-					screen_orientation = (OS::SCREEN_PORTRAIT);
+						OS::get_singleton()->print("set_screen_orientation DisplayServer::SCREEN_PORTRAIT\n");
+					screen_orientation = (DisplayServer::SCREEN_PORTRAIT);
 					break;
 				case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDPORTRAITORIENTATION);
@@ -227,12 +227,12 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_180;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_screen_orientation OS::SCREEN_REVERSE_PORTRAIT\n");
-					screen_orientation = (OS::SCREEN_REVERSE_PORTRAIT);
+						OS::get_singleton()->print("set_screen_orientation DisplayServer::SCREEN_REVERSE_PORTRAIT\n");
+					screen_orientation = (DisplayServer::SCREEN_REVERSE_PORTRAIT);
 					break;
 			}
 		} break;
-		case OS::SCREEN_SENSOR:
+		case DisplayServer::SCREEN_SENSOR:
 			switch (sdl_orientation) {
 				case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_LANDSCAPEORIENTATION);
@@ -241,8 +241,8 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_270;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_screen_orientation OS::SCREEN_LANDSCAPE\n");
-					screen_orientation = (OS::SCREEN_LANDSCAPE);
+						OS::get_singleton()->print("set_screen_orientation DisplayServer::SCREEN_LANDSCAPE\n");
+					screen_orientation = (DisplayServer::SCREEN_LANDSCAPE);
 					break;
 				case SDL_ORIENTATION_LANDSCAPE:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION);
@@ -251,8 +251,8 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_90;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_screen_orientation OS::SCREEN_REVERSE_LANDSCAPE\n");
-					screen_orientation = (OS::SCREEN_REVERSE_LANDSCAPE);
+						OS::get_singleton()->print("set_screen_orientation DisplayServer::SCREEN_REVERSE_LANDSCAPE\n");
+					screen_orientation = (DisplayServer::SCREEN_REVERSE_LANDSCAPE);
 					break;
 				case SDL_ORIENTATION_PORTRAIT:
 					// qt_extended_surface_set_content_orientation0(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_PORTRAITORIENTATION);
@@ -261,8 +261,8 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_screen_orientation OS::SCREEN_PORTRAIT\n");
-					screen_orientation = (OS::SCREEN_PORTRAIT);
+						OS::get_singleton()->print("set_screen_orientation DisplayServer::SCREEN_PORTRAIT\n");
+					screen_orientation = (DisplayServer::SCREEN_PORTRAIT);
 					break;
 				case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDPORTRAITORIENTATION);
@@ -271,8 +271,8 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 					wl_orientation = WL_OUTPUT_TRANSFORM_180;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
-						OS::get_singleton()->print("set_screen_orientation OS::SCREEN_REVERSE_PORTRAIT\n");
-					screen_orientation = (OS::SCREEN_REVERSE_PORTRAIT);
+						OS::get_singleton()->print("set_screen_orientation DisplayServer::SCREEN_REVERSE_PORTRAIT\n");
+					screen_orientation = (DisplayServer::SCREEN_REVERSE_PORTRAIT);
 					break;
 			}
 			break;
@@ -298,34 +298,34 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 	OS::get_singleton()->set_screen_orientation(screen_orientation);
 }
 
-void ContextGL_SDL::set_screen_orientation(OS::ScreenOrientation p_orientation) {
+void ContextGL_SDL::set_screen_orientation(DisplayServer::ScreenOrientation p_orientation) {
 #if SAILFISH_FORCE_LANDSCAPE
 	switch (p_orientation) {
-		case OS::SCREEN_LANDSCAPE:
+		case DisplayServer::SCREEN_LANDSCAPE:
 			p->allowed_orientation_str = "landscape";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_90;
 			break;
-		case OS::SCREEN_PORTRAIT:
+		case DisplayServer::SCREEN_PORTRAIT:
 			p->allowed_orientation_str = "portrait";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 			break;
-		case OS::SCREEN_REVERSE_LANDSCAPE:
+		case DisplayServer::SCREEN_REVERSE_LANDSCAPE:
 			p->allowed_orientation_str = "inverted-landscape";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_270;
 			break;
-		case OS::SCREEN_REVERSE_PORTRAIT:
+		case DisplayServer::SCREEN_REVERSE_PORTRAIT:
 			p->allowed_orientation_str = "inverted-portrait";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_180;
 			break;
-		case OS::SCREEN_SENSOR_LANDSCAPE:
+		case DisplayServer::SCREEN_SENSOR_LANDSCAPE:
 			p->allowed_orientation_str = "landscape";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_90;
 			break;
-		case OS::SCREEN_SENSOR_PORTRAIT:
+		case DisplayServer::SCREEN_SENSOR_PORTRAIT:
 			p->allowed_orientation_str = "portrait";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 			break;
-		case OS::SCREEN_SENSOR:
+		case DisplayServer::SCREEN_SENSOR:
 			p->allowed_orientation_str = "primary";
 			p->wl_allowed_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 			break;

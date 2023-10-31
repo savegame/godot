@@ -14,7 +14,7 @@ common_sdl = [
     "os_sdl.cpp",
     "key_mapping_sdl.cpp",
     "joypad_linux.cpp",
-    "power_sdl.cpp",
+    # "power_sdl.cpp",
 ]
 
 if env['udev'] :

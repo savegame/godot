@@ -34,7 +34,7 @@
 #include "context_gl_sdl.h"
 #include "crash_handler_sdl.h"
 #include "drivers/unix/os_unix.h"
-#include "os/input.h"
+#include "core/os/keyboard.h"
 #include "servers/visual_server.h"
 //#include "servers/visual/visual_server_wrap_mt.h"
 #include "drivers/alsa/audio_driver_alsa.h"
@@ -42,7 +42,7 @@
 #include "helper_macros.h"
 #include "joypad_linux.h"
 #include "main/input_default.h"
-#include "power_sdl.h"
+// #include "power_sdl.h"
 #include "servers/audio_server.h"
 #include "servers/visual/rasterizer.h"
 #include <SDL.h>
@@ -138,7 +138,7 @@ class OS_SDL : public OS_Unix {
 
 	// Atom net_wm_icon;
 
-	PowerSDL *power_manager;
+	// PowerSDL *power_manager;
 
 	CrashHandler crash_handler;
 
@@ -157,9 +157,9 @@ class OS_SDL : public OS_Unix {
 	// Bool xrandr_ext_ok;
 
 protected:
-	virtual int get_video_driver_count() const;
-	virtual const char *get_video_driver_name(int p_driver) const;
-	virtual int get_current_video_driver() const;
+	// virtual int get_video_driver_count() const;
+	// virtual const char *get_video_driver_name(int p_driver) const;
+	// virtual int get_current_video_driver() const;
 
 	virtual int get_audio_driver_count() const;
 	virtual const char *get_audio_driver_name(int p_driver) const;
@@ -264,9 +264,9 @@ public:
 	virtual void _set_use_vsync(bool p_enable);
 	//virtual bool is_vsync_enabled() const;
 
-	virtual OS::PowerState get_power_state();
-	virtual int get_power_seconds_left();
-	virtual int get_power_percent_left();
+	// virtual OS::PowerState get_power_state();
+	// virtual int get_power_seconds_left();
+	// virtual int get_power_percent_left();
 
 	virtual bool _check_internal_feature_support(const String &p_feature);
 

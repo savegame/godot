@@ -28,12 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "core/string_builder.h"
+// #include "core/string_builder.h"
 #include "os_sdl.h"
 // #ifndef GLES2_ENABLED
 #include "drivers/gles3/rasterizer_gles3.h"
 // #else
-#include "drivers/gles2/rasterizer_gles2.h"
+// #include "drivers/gles2/rasterizer_gles2.h"
+#include "drivers/vulkan/rendering_device_vulkan.h"
 // #endif
 #include "errno.h"
 #include "key_mapping_sdl.h"
@@ -77,23 +78,23 @@
 static void on_audio_resource_acquired(audioresource_t *, bool, void *);
 #endif
 
-int OS_SDL::get_video_driver_count() const {
-	return 2;
-}
+// int OS_SDL::get_video_driver_count() const {
+// 	return 2;
+// }
 
-const char *OS_SDL::get_video_driver_name(int p_driver) const {
-	switch (p_driver) {
-		case VIDEO_DRIVER_GLES3:
-			return "GLES3";
-		case VIDEO_DRIVER_GLES2:
-			return "GLES2";
-	}
-	ERR_FAIL_V_MSG(NULL, "Invalid video driver index: " + itos(p_driver) + ".");
-}
+// const char *OS_SDL::get_video_driver_name(int p_driver) const {
+// 	switch (p_driver) {
+// 		case VIDEO_DRIVER_GLES3:
+// 			return "GLES3";
+// 		// case VIDEO_DRIVER_GLES2:
+// 		// 	return "GLES2";
+// 	}
+// 	ERR_FAIL_V_MSG(NULL, "Invalid video driver index: " + itos(p_driver) + ".");
+// }
 
-int OS_SDL::get_current_video_driver() const {
-	return video_driver_index;
-}
+// int OS_SDL::get_current_video_driver() const {
+// 	return video_driver_index;
+// }
 
 int OS_SDL::get_audio_driver_count() const {
 	return AudioDriverManager::get_driver_count();
@@ -225,7 +226,7 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 #endif
 	ensure_user_data_dir();
 
-	power_manager = memnew(PowerSDL);
+	// power_manager = memnew(PowerSDL);
 
 	return OK;
 }
@@ -284,7 +285,7 @@ void OS_SDL::finalize() {
 	memdelete(visual_server);
 	//memdelete(rasterizer);
 
-	memdelete(power_manager);
+	// memdelete(power_manager);
 
 	// #if defined(OPENGL_ENABLED || GLES_ENABLED)
 	memdelete(context_gl);
@@ -1478,17 +1479,17 @@ bool OS_SDL::is_vsync_enabled() const {
 }
 */
 
-OS::PowerState OS_SDL::get_power_state() {
-	return power_manager->get_power_state();
-}
+// OS::PowerState OS_SDL::get_power_state() {
+// 	return power_manager->get_power_state();
+// }
 
-int OS_SDL::get_power_seconds_left() {
-	return power_manager->get_power_seconds_left();
-}
+// int OS_SDL::get_power_seconds_left() {
+// 	return power_manager->get_power_seconds_left();
+// }
 
-int OS_SDL::get_power_percent_left() {
-	return power_manager->get_power_percent_left();
-}
+// int OS_SDL::get_power_percent_left() {
+// 	return power_manager->get_power_percent_left();
+// }
 
 void OS_SDL::disable_crash_handler() {
 	crash_handler.disable();

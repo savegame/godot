@@ -56,22 +56,22 @@ Adapted from corresponding SDL 2.0 code.
 #include "power_sdl.h"
 #include <SDL.h>
 
-OS::PowerState PowerSDL::get_power_state() {
-	switch (SDL_GetPowerInfo(NULL, NULL)) {
-		case SDL_POWERSTATE_UNKNOWN:
-			return OS::POWERSTATE_UNKNOWN;
-		case SDL_POWERSTATE_ON_BATTERY:
-			return OS::POWERSTATE_ON_BATTERY;
-		case SDL_POWERSTATE_NO_BATTERY:
-			return OS::POWERSTATE_NO_BATTERY;
-		case SDL_POWERSTATE_CHARGING:
-			return OS::POWERSTATE_CHARGING;
-		case SDL_POWERSTATE_CHARGED:
-			return OS::POWERSTATE_CHARGED;
-		default:
-			return OS::POWERSTATE_UNKNOWN;
-	}
-}
+// OS::PowerState PowerSDL::get_power_state() {
+// 	switch (SDL_GetPowerInfo(NULL, NULL)) {
+// 		case SDL_POWERSTATE_UNKNOWN:
+// 			return OS::POWERSTATE_UNKNOWN;
+// 		case SDL_POWERSTATE_ON_BATTERY:
+// 			return OS::POWERSTATE_ON_BATTERY;
+// 		case SDL_POWERSTATE_NO_BATTERY:
+// 			return OS::POWERSTATE_NO_BATTERY;
+// 		case SDL_POWERSTATE_CHARGING:
+// 			return OS::POWERSTATE_CHARGING;
+// 		case SDL_POWERSTATE_CHARGED:
+// 			return OS::POWERSTATE_CHARGED;
+// 		default:
+// 			return OS::POWERSTATE_UNKNOWN;
+// 	}
+// }
 
 int PowerSDL::get_power_seconds_left() {
 	int seconds_left = -1;

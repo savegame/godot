@@ -31,12 +31,12 @@
 #ifndef SDL_POWER_H_
 #define SDL_POWER_H_
 
-#include "os/os.h"
+#include "core/os/os.h"
 
 class PowerSDL {
 
 public:
-	OS::PowerState get_power_state();
+	// OS::PowerState get_power_state();
 	int get_power_seconds_left();
 	int get_power_percent_left();
 };

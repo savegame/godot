@@ -34,9 +34,10 @@
 #define JOYPAD_LINUX_H
 
 #ifdef JOYDEV_ENABLED
+#include "core/input/input.h"
 #include "core/os/mutex.h"
 #include "core/os/thread.h"
-#include "main/input_default.h"
+#include "core/templates/local_vector.h"
 
 struct input_absinfo;
 

@@ -69,7 +69,7 @@ public:
 	virtual bool is_using_vsync() const;
 	virtual SDL_Window *get_window_pointer();
 
-	void set_screen_orientation(OS::ScreenOrientation p_orientation);
+	void set_screen_orientation(DisplayServer::ScreenOrientation p_orientation);
 	// is SDL_DisplayOrientation value
 	void set_ext_surface_orientation(int orientation);
 

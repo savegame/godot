@@ -12,39 +12,59 @@ def get_name():
 
 
 def can_build():
-
+    is_ok = True
     if (os.name != "posix" or sys.platform == "darwin"):
         return False
 
+    clang_error = os.system("clang++ --version &>/dev/null")
+    if(clang_error):
+        print("clang++ compiller not found. Install clang for all your targets in MerSDK.")
+        is_ok = False
+    else:
+        print("clang++ compiller is found")
+
     # Check the minimal dependencies
-    sdl_error = os.system("pkg-config --version > /dev/null")
+    sdl_error = os.system("pkg-config --version &>/dev/null")
     if (sdl_error):
         print("pkg-config not found...")
         return False
 
-
-    sdl_error = os.system("pkg-config sdl2 --modversion > /dev/null ")
+    sdl_error = os.system("pkg-config sdl2 --modversion &>/dev/null ")
     if (sdl_error):
        print("SDL2 not found. Sailfish build disabled. Install SDL2-devel for all your targets in MerSDK ")
-       return False
+       is_ok = False
     else:
         print("SDL2-devel is found")
 
-    # ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
-    # if(ar_error):
-    #     print("libaudioresource-devel not found. Install libaudioresource-devel for all your targets in MerSDK")
-    #     return False;
-    # else:
-    #     print("libaudioresource-devel is found")
+    libpng_error = os.system("pkg-config libpng --modversion &>/dev/null")
+    if(libpng_error):
+        print("libpng not found. Install libpng-devel for all your targets in MerSDK")
+        is_ok = False
+    else:
+        print("libpng is found")
 
-    glib_error = os.system("pkg-config glib-2.0 --modversion > /dev/null")
+    zlib_error = os.system("pkg-config zlib --modversion &>/dev/null")
+    if(zlib_error):
+        print("zlib not found. Install zlib-devel for all your targets in MerSDK")
+        is_ok = False
+    else:
+        print("zlib is found")
+
+    glib_error = os.system("pkg-config glib-2.0 --modversion &>/dev/null")
     if(glib_error):
         print("glib2-devel not found. Install glib2-devel for all your targets in MerSDK")
-        return False;
+        is_ok = False
     else:
         print("glib2-devel is found")
+    
+    wayland_error = os.system("pkg-config wayland-client --modversion &>/dev/null")
+    if(wayland_error):
+        print("wayland-client.pc not found. Install wayland-devel for all your targets in MerSDK.")
+        is_ok = False
+    else:
+        print("wayland-client.pc is found")
 
-    udev_error = os.system("pkg-config libudev --modversion > /dev/null")
+    udev_error = os.system("pkg-config libudev --modversion &>/dev/null")
     if(udev_error):
         print("libudev.pc not found. Install systemd-devel for all your targets in MerSDK. Joypad support is disabled.")
         # return False; # not critical
@@ -56,7 +76,14 @@ def can_build():
     #     print("libwebp-devel not found. Install libwebp-devel for all your targets in MerSDK\n")
     #     return False;
 
-    return True
+    openssl_error = os.system("pkg-config openssl --modversion &>/dev/null")
+    if(openssl_error):
+        print("openssl.pc not found. Install openssl-devel for all your targets in MerSDK.")
+        is_ok = False;
+    else:
+        print("openssl.pc is found")
+
+    return is_ok
 
 def get_opts():
     from SCons.Variables import BoolVariable, EnumVariable, PathVariable
@@ -67,8 +94,8 @@ def get_opts():
         BoolVariable('use_sanitizer', 'Use LLVM compiler address sanitizer', False),
         BoolVariable('use_leak_sanitizer', 'Use LLVM compiler memory leaks sanitizer (implies use_sanitizer)', False),
         BoolVariable('pulseaudio', 'Detect & use pulseaudio', True),
-        BoolVariable('udev', 'Use udev for gamepad connection callbacks', True),
-        EnumVariable('debug_symbols', 'Add debug symbols to release version', 'no', ('yes', 'no', 'full')),
+        BoolVariable('udev', 'Use udev for gamepad connection callbacks', False),
+        # EnumVariable('debug_symbols', 'Add debug symbols to release version', False, [True, False]),
         BoolVariable('separate_debug_symbols', 'Create a separate file with the debug symbols', False),
         BoolVariable('touch', 'Enable touch events', True),
         BoolVariable('tools', 'Enable editor tools', False),
@@ -97,14 +124,14 @@ def configure(env):
         # -O3 -ffast-math is identical to -Ofast. We need to split it out so we can selectively disable
         # -ffast-math in code for which it generates wrong results.
         env.Prepend(CCFLAGS=['-O3', '-ffast-math', '-DGLES_ENABLED'])
-        if (env["debug_symbols"] == "yes"):
+        if (env["debug_symbols"]):
             env.Prepend(CCFLAGS=['-g1'])
         if (env["debug_symbols"] == "full"):
             env.Prepend(CCFLAGS=['-g2'])
 
     elif (env["target"] == "release_debug"):
         env.Prepend(CCFLAGS=['-O2', '-ffast-math', '-DDEBUG_ENABLED', '-DGLES_ENABLED'])
-        if (env["debug_symbols"] == "yes"):
+        if (env["debug_symbols"]):
             env.Prepend(CCFLAGS=['-g1'])
         if (env["debug_symbols"] == "full"):
             env.Prepend(CCFLAGS=['-g2'])
@@ -116,8 +143,8 @@ def configure(env):
     ## Architecture
 
     is64 = sys.maxsize > 2**32
-    if (env["bits"] == "default"):
-        env["bits"] = "64" if is64 else "32"
+    # if (env["bits"] == "default"):
+    env["bits"] = "64" if is64 else "32"
 
     ## Compiler configuration
 
@@ -142,15 +169,15 @@ def configure(env):
             env.Append(CCFLAGS=['-fsanitize=leak'])
             env.Append(LINKFLAGS=['-fsanitize=leak'])
 
-    if env['use_lto']:
-        env.Append(CCFLAGS=['-flto'])
-        if not env['use_llvm'] and env.GetOption("num_jobs") > 1:
-            env.Append(LINKFLAGS=['-flto=' + str(env.GetOption("num_jobs"))])
-        else:
-            env.Append(LINKFLAGS=['-flto'])
-        if not env['use_llvm']:
-            env['RANLIB'] = 'gcc-ranlib'
-            env['AR'] = 'gcc-ar'
+    # if env['use_lto']:
+    #     env.Append(CCFLAGS=['-flto'])
+    #     if not env['use_llvm'] and env.GetOption("num_jobs") > 1:
+    #         env.Append(LINKFLAGS=['-flto=' + str(env.GetOption("num_jobs"))])
+    #     else:
+    #         env.Append(LINKFLAGS=['-flto'])
+    #     if not env['use_llvm']:
+    #         env['RANLIB'] = 'gcc-ranlib'
+    #         env['AR'] = 'gcc-ar'
 
     env.Append(CCFLAGS=['-pipe'])
     env.Append(LINKFLAGS=['-pipe'])
@@ -197,15 +224,15 @@ def configure(env):
     if not env['builtin_libpng']:
         env.ParseConfig('pkg-config libpng --cflags --libs')
 
-    if not env['builtin_bullet']:
-        # We need at least version 2.88
-        import subprocess
-        bullet_version = subprocess.check_output(['pkg-config', 'bullet', '--modversion']).strip()
-        if bullet_version < "2.88":
-            # Abort as system bullet was requested but too old
-            print("Bullet: System version {0} does not match minimal requirements ({1}). Aborting.".format(bullet_version, "2.88"))
-            sys.exit(255)
-        env.ParseConfig('pkg-config bullet --cflags --libs')
+    # if not env['builtin_bullet']:
+    #     # We need at least version 2.88
+    #     import subprocess
+    #     bullet_version = subprocess.check_output(['pkg-config', 'bullet', '--modversion']).strip()
+    #     if bullet_version < "2.88":
+    #         # Abort as system bullet was requested but too old
+    #         print("Bullet: System version {0} does not match minimal requirements ({1}). Aborting.".format(bullet_version, "2.88"))
+    #         sys.exit(255)
+    #     env.ParseConfig('pkg-config bullet --cflags --libs')
 
     if not env['builtin_enet']:
         env.ParseConfig('pkg-config libenet --cflags --libs')
@@ -224,16 +251,16 @@ def configure(env):
         env['builtin_libvorbis'] = False  # Needed to link against system libtheora
         env.ParseConfig('pkg-config theora theoradec --cflags --libs')
 
-    if not env['builtin_libvpx']:
-        env.ParseConfig('pkg-config vpx --cflags --libs')
+    # if not env['builtin_libvpx']:
+    #     env.ParseConfig('pkg-config vpx --cflags --libs')
 
     if not env['builtin_libvorbis']:
         env['builtin_libogg'] = False  # Needed to link against system libvorbis
         env.ParseConfig('pkg-config vorbis vorbisfile --cflags --libs')
 
-    if not env['builtin_opus']:
-        env['builtin_libogg'] = False  # Needed to link against system opus
-        env.ParseConfig('pkg-config opus opusfile --cflags --libs')
+    # if not env['builtin_opus']:
+    #     env['builtin_libogg'] = False  # Needed to link against system opus
+    #     env.ParseConfig('pkg-config opus opusfile --cflags --libs')
 
     if not env['builtin_libogg']:
         env.ParseConfig('pkg-config ogg --cflags --libs')
@@ -266,9 +293,8 @@ def configure(env):
             print("PulseAudio development libraries not found, disabling driver")
 
     if (platform.system() == "Linux"):
-        env.Append(CPPFLAGS=["-DJOYDEV_ENABLED", '-DGLES_ENABLED'])
-
         if env['udev']:
+            env.Append(CPPFLAGS=["-DJOYDEV_ENABLED"])
             if (os.system("pkg-config --exists libudev") == 0): # 0 means found
                 print("Enabling udev support")
                 env.Append(CPPFLAGS=["-DUDEV_ENABLED"])
