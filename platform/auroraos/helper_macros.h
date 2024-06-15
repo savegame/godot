@@ -1,5 +1,5 @@
-#ifndef SAILFISH_MACRO
-#define SAILFISH_MACRO
+#ifndef AURORAOS_MACRO
+#define AURORAOS_MACRO
 
 // print verbose macros (more usefull than print_verbose funtion, from print_string.h)
 #define mprint_verbose2(x, ...)                     \

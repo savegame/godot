@@ -61,8 +61,8 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_LIGHT_ANGLE, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_MODULATE, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_LARGE_VERTEX, false);
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
-	WARN_PRINT_ONCE("Force Sailfish landscape mode enabled");
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
+	WARN_PRINT_ONCE("Force AuroraOS landscape mode enabled");
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_FORCE_LANDSCAPE, true);
 #else
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_FORCE_LANDSCAPE, false);
@@ -124,7 +124,7 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 		canvas_transform.scale(Vector3(2.0f / storage->frame.current_rt->width, csy * -2.0f / storage->frame.current_rt->height, 1.0f));
 	} else {
 		Vector2 ssize = OS::get_singleton()->get_window_size();
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
@@ -143,7 +143,7 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 
 	_set_uniforms();
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 	// TODO: move this code to _set_uniforms
 	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE)
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::FORCE_LANDSCAPE, 1);
@@ -169,7 +169,7 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 		//reset viewport to full window size
 		int viewport_width = OS::get_singleton()->get_window_size().width;
 		int viewport_height = OS::get_singleton()->get_window_size().height;
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) {
@@ -295,7 +295,7 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 	int window_h = window_size.height;
 	int window_w = window_size.width;
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 	// force landscape
 	if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 			OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
@@ -306,7 +306,7 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 #endif
 
 	glBindFramebuffer(GL_FRAMEBUFFER, storage->system_fbo);
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 	glViewport(0, 0, window_w, window_h);
 #else
 	glViewport(0, 0, window_size.width, window_size.height);

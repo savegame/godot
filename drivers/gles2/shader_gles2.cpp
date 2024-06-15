@@ -173,8 +173,8 @@ ShaderGLES2::Version *ShaderGLES2::get_current_version() {
 #else
 	strings.push_back("#version 100\n");
 
-#ifdef SAILFISH_i486_GLES2
-	strings.push_back("#define USE_SAILFISH_i486_GLES2\n");
+#ifdef AURORAOS_i486_GLES2
+	strings.push_back("#define USE_AURORAOS_i486_GLES2\n");
 #endif
 
 //angle does not like

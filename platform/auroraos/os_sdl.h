@@ -174,7 +174,7 @@ protected:
 
 	bool is_window_maximize_allowed();
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 	void fix_touch_position(Vector2 &pos, bool absolute = false);
 #endif
 

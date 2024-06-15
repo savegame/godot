@@ -40,7 +40,7 @@
 #include <EGL/egl.h>
 #include <SDL_opengles2.h>
 #include <SDL_video.h>
-#ifdef SAILFISH_ENABLED
+#ifdef AURORAOS_ENABLED
 #include <SDL_syswm.h>
 #include <wayland-client-protocol.h>
 #endif
@@ -174,7 +174,7 @@ SDL_Window *ContextGL_SDL::get_window_pointer() {
 
 void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 	OS::ScreenOrientation screen_orientation = OS::get_singleton()->get_screen_orientation();
-#ifdef SAILFISH_ENABLED
+#ifdef AURORAOS_ENABLED
 	int wl_orientation = p->wl_allowed_orientation;
 	/*case SDL_ORIENTATION_LANDSCAPE: WL_OUTPUT_TRANSFORM_270
 	case SDL_ORIENTATION_LANDSCAPE_FLIPPED: WL_OUTPUT_TRANSFORM_90
@@ -189,7 +189,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_LANDSCAPEORIENTATION);
 					p->allowed_orientation_str = "landscape";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_270;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -199,7 +199,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_LANDSCAPE:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION);
 					p->allowed_orientation_str = "inverted-landscape";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_90;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -213,7 +213,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_PORTRAIT:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_PORTRAITORIENTATION);
 					p->allowed_orientation_str = "portrait";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -223,7 +223,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDPORTRAITORIENTATION);
 					p->allowed_orientation_str = "inverted-portrait";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_180;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -237,7 +237,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_LANDSCAPEORIENTATION);
 					p->allowed_orientation_str = "landscape";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_270;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -247,7 +247,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_LANDSCAPE:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDLANDSCAPEORIENTATION);
 					p->allowed_orientation_str = "inverted-landscape";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_90;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -257,7 +257,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_PORTRAIT:
 					// qt_extended_surface_set_content_orientation0(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_PORTRAITORIENTATION);
 					p->allowed_orientation_str = "portrait";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_NORMAL;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -267,7 +267,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 				case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 					// qt_extended_surface_set_content_orientation(p->qt_ext_surface, QT_EXTENDED_SURFACE_ORIENTATION_INVERTEDPORTRAITORIENTATION);
 					p->allowed_orientation_str = "inverted-portrait";
-					#ifdef SAILFISH_ENABLED
+					#ifdef AURORAOS_ENABLED
 					wl_orientation = WL_OUTPUT_TRANSFORM_180;
 					#endif
 					if (OS::get_singleton()->is_stdout_verbose())
@@ -280,7 +280,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 			// No need other orietations hadle, bacuse other orientations are static, not dynamic
 			break;
 	}
-#ifdef SAILFISH_ENABLED
+#ifdef AURORAOS_ENABLED
 	struct SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
     if (!SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
@@ -289,7 +289,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
         if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str(), SDL_HINT_OVERRIDE) == SDL_FALSE) {
 			mprint_verbose("WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events");
 		}
-#ifdef SAILFISH_ENABLED
+#ifdef AURORAOS_ENABLED
     } else if(p->wl_allowed_orientation != wl_orientation)  {
 		p->wl_allowed_orientation = wl_orientation;
 		wl_surface_set_buffer_transform(wmInfo.info.wl.surface, wl_orientation);
@@ -299,7 +299,7 @@ void ContextGL_SDL::set_ext_surface_orientation(int sdl_orientation) {
 }
 
 void ContextGL_SDL::set_screen_orientation(OS::ScreenOrientation p_orientation) {
-#if SAILFISH_FORCE_LANDSCAPE
+#if AURORAOS_FORCE_LANDSCAPE
 	switch (p_orientation) {
 		case OS::SCREEN_LANDSCAPE:
 			p->allowed_orientation_str = "landscape";
@@ -341,7 +341,7 @@ void ContextGL_SDL::set_screen_orientation(OS::ScreenOrientation p_orientation) 
 	"portrait"           top of device up
 	"inverted-portrait"  top of device down
 	*/
-#ifndef SAILFISH_ENABLED
+#ifndef AURORAOS_ENABLED
 	if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, p->allowed_orientation_str.c_str(), SDL_HINT_OVERRIDE) == SDL_FALSE) {
 		mprint_verbose("WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events");
 		// OS::get_singleton()->print

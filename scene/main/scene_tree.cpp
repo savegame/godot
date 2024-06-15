@@ -1247,7 +1247,7 @@ void SceneTree::_update_root_rect() {
 	if (stretch_mode == STRETCH_MODE_DISABLED) {
 		_update_font_oversampling(stretch_scale);
 		root->set_size(last_screen_size.floor());
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 		// landscape orientation
 		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE) {
@@ -1317,7 +1317,7 @@ void SceneTree::_update_root_rect() {
 	//black bars and margin
 	if (stretch_aspect != STRETCH_ASPECT_EXPAND && screen_size.x < video_mode.x) {
 		margin.x = Math::round((video_mode.x - screen_size.x) / 2.0);
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 		// landscape orientation
 		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
@@ -1333,7 +1333,7 @@ void SceneTree::_update_root_rect() {
 		offset.x = Math::round(margin.x * viewport_size.y / screen_size.y);
 	} else if (stretch_aspect != STRETCH_ASPECT_EXPAND && screen_size.y < video_mode.y) {
 		margin.y = Math::round((video_mode.y - screen_size.y) / 2.0);
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 		if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
 				OS::get_singleton()->get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE) { // landscape
@@ -1358,7 +1358,7 @@ void SceneTree::_update_root_rect() {
 		case STRETCH_MODE_2D: {
 			_update_font_oversampling((screen_size.x / viewport_size.x) * stretch_scale); //screen / viewport ratio drives oversampling
 			root->set_size(screen_size.floor());
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 			// force landscape
 			if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 					OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
@@ -1375,7 +1375,7 @@ void SceneTree::_update_root_rect() {
 		case STRETCH_MODE_VIEWPORT: {
 			_update_font_oversampling(1.0);
 			root->set_size((viewport_size / stretch_scale).floor());
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 			// force landscape
 			if (OS::get_singleton()->get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 					OS::get_singleton()->get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||

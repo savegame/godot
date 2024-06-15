@@ -30,5 +30,5 @@
 #include <core/object.h>
 #include <editor/editor_export.h>
 
-void register_sailfish_exporter();
+void register_auroraos_exporter();
 
