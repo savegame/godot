@@ -378,7 +378,7 @@ highp mat4 inverse(highp mat4 m) {
 
 #endif
 
-#if defined(USE_SAILFISH_i486_GLES2)
+#if defined(USE_AURORAOS_i486_GLES2)
 #define TRANSPOSE_FUNC_NAME transpose_custom
 #else
 #define TRANSPOSE_FUNC_NAME transpose

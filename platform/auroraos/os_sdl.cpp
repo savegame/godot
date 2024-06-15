@@ -136,7 +136,7 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	OS::get_singleton()->print("Current vide driver is: %s\n", SDL_GetCurrentVideoDriver());
 
 	// ** ENABLE DRAG AND DROP SUPPORT ** //
-	// no drop event in sailfish
+	// no drop event in auroraos
 	//SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 	//SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
 
@@ -161,7 +161,7 @@ Error OS_SDL::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 		return ERR_UNAVAILABLE;
 	}
 
-	// // fix resolution in video mode, becuse SailfishOS has only fullscreen resolution
+	// // fix resolution in video mode, becuse AuroraOS has only fullscreen resolution
 	// current_videomode.width = context_gl->get_window_width();
 	// current_videomode.height = context_gl->get_window_height();
 
@@ -455,7 +455,7 @@ int OS_SDL::get_screen_dpi(int p_screen) const {
 					  String(Variant(p_screen)) + String(" from SDL, Error: ") + String(SDL_GetError()));
 	} else {
 		Size2 sz = get_screen_size(p_screen);
-		// TODO get rigth display size in Wayland sailfish
+		// TODO get rigth display size in Wayland auroraos
 		diagonal_dpi = sz.width / 4.370079;
 	}
 
@@ -477,7 +477,7 @@ void OS_SDL::set_window_position(const Point2 &p_position) {
 Size2 OS_SDL::get_window_size() const {
 	int w, h;
 	SDL_GetWindowSize(sdl_window, &w, &h);
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 	if (get_screen_orientation() == OS::SCREEN_LANDSCAPE ||
 			get_screen_orientation() == OS::SCREEN_SENSOR_LANDSCAPE ||
 			get_screen_orientation() == OS::SCREEN_REVERSE_LANDSCAPE)
@@ -602,7 +602,7 @@ unsigned int OS_SDL::get_mouse_button_state(uint32_t button_mask, bool refresh) 
 	return state;
 }
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 void OS_SDL::fix_touch_position(Vector2 &pos, bool absolute) {
 	int w, h;
 	SDL_GetWindowSize(sdl_window, &w, &h);
@@ -746,7 +746,7 @@ void OS_SDL::process_events() {
 
 			Vector2 pos(event.button.x, event.button.y);
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 			fix_touch_position(pos, true);
 #endif
 
@@ -779,7 +779,7 @@ void OS_SDL::process_events() {
 			// Point2i pos(event.motion.x, event.motion.y);
 			Vector2 pos(event.motion.x, event.motion.y);
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 			fix_touch_position(pos, true);
 #endif
 
@@ -827,7 +827,7 @@ void OS_SDL::process_events() {
 			long long index = (int)event.tfinger.fingerId;
 			Point2 pos = Point2(event.tfinger.x, event.tfinger.y);
 
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 			fix_touch_position(pos);
 #endif
 			// end landscape
@@ -895,7 +895,7 @@ void OS_SDL::process_events() {
 
 			int index = (int)event.tfinger.fingerId;
 			Point2 pos = Point2(event.tfinger.x, event.tfinger.y);
-#if SAILFISH_FORCE_LANDSCAPE && SAILFISH_ENABLED
+#if AURORAOS_FORCE_LANDSCAPE && AURORAOS_ENABLED
 			fix_touch_position(pos);
 #endif
 			Map<int, Vector2>::Element *curr_pos_elem = touch.state.find(index);
@@ -1024,7 +1024,7 @@ void OS_SDL::process_events() {
 			continue;
 		}
 
-		// no drop events in sailfish OS
+		// no drop events in auroraos OS
 		// if (event.type == SDL_DROPFILE) {
 
 		// 	dropped_files.push_back(event.drop.file);
@@ -1137,7 +1137,7 @@ String OS_SDL::get_clipboard() const {
 }
 
 String OS_SDL::get_name() {
-	return "Sailfish";
+	return "AuroraOS";
 }
 
 Error OS_SDL::shell_open(String p_uri) {

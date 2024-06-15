@@ -46,15 +46,15 @@
 #include "editor/editor_settings.h"
 #include "main/main.h"
 #include "modules/regex/regex.h"
-#include "platform/sailfish/logo.gen.h"
+#include "platform/auroraos/logo.gen.h"
 #include "scene/resources/texture.h"
 
-#define prop_editor_sdk_path "export/sailfish/sdk_path"
-#define prop_editor_tool "export/sailfish/tool"
-#define prop_editor_ssh_tool_path "export/sailfish/ssh_tool_path"
-#define prop_editor_ssh_port "export/sailfish/ssh_port"
+#define prop_editor_sdk_path "export/auroraos/sdk_path"
+#define prop_editor_tool "export/auroraos/tool"
+#define prop_editor_ssh_tool_path "export/auroraos/ssh_tool_path"
+#define prop_editor_ssh_port "export/auroraos/ssh_port"
 
-#define prop_sailfish_sdk_path "sailfish_sdk/sdk_path"
+#define prop_auroraos_sdk_path "auroraos_sdk/sdk_path"
 #define prop_custom_binary_arm "custom_binary/arm"
 #define prop_custom_binary_arm_debug "custom_binary/arm_debug"
 #define prop_custom_binary_x86 "custom_binary/x86"
@@ -167,7 +167,7 @@ const String spec_file_tempalte =
 		"%files\n"
 		"%defattr(644,root,root,-)\n"
 		"%attr(755,root,root) %{_bindir}/%{name}\n"
-		// "%attr(644,root,root) %{_datadir}/%{name}/%{name}.png\n" // FIXME: add icons for all resolutions, as SailfishOS specification needed
+		// "%attr(644,root,root) %{_datadir}/%{name}/%{name}.png\n" // FIXME: add icons for all resolutions, as AuroraOS specification needed
 		"%{_datadir}/icons/hicolor/*\n"
 		"%attr(644,root,root) %{_datadir}/%{name}/%{name}.pck\n"
 		// "%attr(755,root,root) %{_datadir}/%{name}/lib/*\n" // FIXME: add this as optional string, if we use native extensions
@@ -183,7 +183,7 @@ const String desktop_file_template =
 		"Type=Application\n"
 		"X-Nemo-Application-Type=silica-qt5\n"
 		"Icon=%{name}\n"
-		"Exec=%{name} --main-pack %{_datadir}/%{name}/%{name}.pck\n" // FIXME: SAILFISH use invoker!
+		"Exec=%{name} --main-pack %{_datadir}/%{name}/%{name}.pck\n" // FIXME: AURORAOS use invoker!
 		"Name=%{_gd_launcher_name}\n"
 		"Name[en]=%{_gd_launcher_name}\n";
 
@@ -205,8 +205,8 @@ static void _execute_thread(void *p_ud) {
 	eta->done.set();
 }
 
-class EditorExportPlatformSailfish : public EditorExportPlatform {
-	GDCLASS(EditorExportPlatformSailfish, EditorExportPlatform)
+class EditorExportPlatformAuroraOS : public EditorExportPlatform {
+	GDCLASS(EditorExportPlatformAuroraOS, EditorExportPlatform)
 
 	/** On Windows, the sfdk tool works worst
 	 * with the @godot implementation of the
@@ -236,7 +236,7 @@ class EditorExportPlatformSailfish : public EditorExportPlatform {
 	struct MerTarget {
 		MerTarget() {
 			arch = arch_unkown;
-			name = "SailfishOS";
+			name = "AuroraOS";
 			target_template = "";
 			addversion = "";
 			version[0] = 4;
@@ -253,7 +253,7 @@ class EditorExportPlatformSailfish : public EditorExportPlatform {
 	};
 
 	struct NativePackage {
-		MerTarget target; // Sailfish build target
+		MerTarget target; // AuroraOS build target
 		String name; // package rpm name (lowercase, without special symbols)
 		String launcher_name; // button name in launcher menu
 		String version; // game/application version
@@ -299,12 +299,10 @@ protected:
 
 	String get_sdk_config_path(const Ref<EditorExportPreset> &p_preset) const {
 		String sdk_configs_path = OS::get_singleton()->get_config_path();
-		//sdk_configs_path +=  String("/SailfishOS-SDK/"); // old SailfishSDK , before 3.0.7
-		//mer_sdk_tools = sdk_configs_path + String("/mer-sdk-tools/Sailfish OS Build Engine/"); // old SailfishSDK , before 3.0.7
 #ifdef OSX_ENABLED
 		sdk_configs_path = OS::get_singleton()->get_environment("HOME") + String("/.config");
 #elif WINDOWS_ENABLED
-		sdk_configs_path = String(p_preset->get(prop_sailfish_sdk_path)) + separator + String("settings");
+		sdk_configs_path = String(p_preset->get(prop_auroraos_sdk_path)) + separator + String("settings");
 #endif
 		sdk_configs_path += separator + sdk_config_dir;
 		return sdk_configs_path;
@@ -337,7 +335,7 @@ protected:
 	}
 
 	String get_sfdk_path(const Ref<EditorExportPreset> &p_preset) const {
-		String sfdk_path = String(p_preset->get(prop_sailfish_sdk_path));
+		String sfdk_path = String(p_preset->get(prop_auroraos_sdk_path));
 #ifdef WINDOWS_ENABLED
 		sfdk_path += String("\\bin\\sfdk.exe");
 #else
@@ -402,7 +400,7 @@ protected:
 
 		if (sdk_tool == SDKConnectType::tool_ssh) {
 			// here we neet to know where is RSA keys for buildengine
-			String rsa_key_path = p_preset->get(prop_sailfish_sdk_path);
+			String rsa_key_path = p_preset->get(prop_auroraos_sdk_path);
 			rsa_key_path += String(mersdk_rsa_key);
 			String ssh_port = EDITOR_GET(prop_editor_ssh_port);
 			pre_args.push_back("-o");
@@ -474,7 +472,7 @@ protected:
 		Error err;
 		bool is_export_path_exits_in_sdk = false;
 		{
-			// check avaliable folders in build engine ( from some SailfishSDK version,
+			// check avaliable folders in build engine ( from some AuroraSDK version,
 			// in buildengine has no /home/metsdk/share folder, just /home/username
 			// folder (in unix systems, with docker) )
 			// that mean, expart path in build engine should be same as on host system
@@ -813,8 +811,8 @@ protected:
 	}
 
 public:
-	EditorExportPlatformSailfish() {
-		// Ref<Image> img = memnew(Image(_sailfish_logo));
+	EditorExportPlatformAuroraOS() {
+		// Ref<Image> img = memnew(Image(_auroraos_logo));
 		// logo.instance();
 		// logo->create_from_image(img);
 	}
@@ -839,11 +837,11 @@ public:
 	}
 
 	String get_os_name() const override {
-		return "SailfishOS";
+		return "AuroraOS";
 	}
 
 	String get_name() const override {
-		return "SailfishOS";
+		return "AuroraOS";
 	}
 
 	void set_logo(Ref<Texture> logo) {
@@ -858,7 +856,7 @@ public:
 		EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::STRING, prop_editor_sdk_path, PROPERTY_HINT_GLOBAL_DIR));
 		bool global_valid = false;
 		String global_sdk_path = EditorSettings::get_singleton()->get(prop_editor_sdk_path, &global_valid);
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_sailfish_sdk_path, PROPERTY_HINT_GLOBAL_DIR), (global_valid) ? global_sdk_path : ""));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_auroraos_sdk_path, PROPERTY_HINT_GLOBAL_DIR), (global_valid) ? global_sdk_path : ""));
 
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_arm, PROPERTY_HINT_GLOBAL_FILE), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_custom_binary_arm_debug, PROPERTY_HINT_GLOBAL_FILE), ""));
@@ -875,11 +873,11 @@ public:
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "harbour-$genname"), "harbour-$genname"));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_launcher_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "Game Name [default if blank]"), ""));
 
-		String global_icon_path = ProjectSettings::get_singleton()->get("application/config/icon");
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_86, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_108, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_128, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_172, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+		// String global_icon_path = ProjectSettings::get_singleton()->get("application/config/icon");
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_86, PROPERTY_HINT_GLOBAL_FILE), "res://icons/86.png"));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_108, PROPERTY_HINT_GLOBAL_FILE), "res://icons/108.png"));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_128, PROPERTY_HINT_GLOBAL_FILE), "res://icons/128.png"));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_launcher_icons_172, PROPERTY_HINT_GLOBAL_FILE), "res://icons/172.png"));
 
 		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, prop_sailjail_enabled), true));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_sailjail_organization, PROPERTY_HINT_PLACEHOLDER_TEXT, "org.godot"), ""));
@@ -891,8 +889,8 @@ public:
 		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, prop_validator_enable), false));
 
 		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, prop_aurora_sign_enable), false));
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_aurora_sign_key, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
-		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_aurora_sign_cert, PROPERTY_HINT_GLOBAL_FILE), global_icon_path));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_aurora_sign_key, PROPERTY_HINT_GLOBAL_FILE), ""));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_aurora_sign_cert, PROPERTY_HINT_GLOBAL_FILE), ""));
 	}
 
 	bool can_export(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override {
@@ -910,7 +908,7 @@ public:
 			sdk_tool = SDKConnectType::tool_ssh;
 
 		if (driver == "GLES3") {
-			print_line(TTR("GLES3 render not finished in SailfihsOS port! Sorry, but it work properly in Portrait orientation only."));
+			print_line(TTR("GLES3 render not finished in AuroraOS port! Sorry, but it work properly in Portrait orientation only."));
 			//return false;
 		}
 
@@ -934,7 +932,7 @@ public:
 		print_verbose(String("aarch64_binary: ") + aarch64_template);
 
 		if (arm_template.empty() && x86_template.empty() && aarch64_template.empty()) {
-			r_error = TTR("Cant export without SailfishOS export templates");
+			r_error = TTR("Cant export without AuroraOS export templates");
 			r_missing_templates = true;
 			return false;
 		} else {
@@ -972,12 +970,12 @@ public:
 		}
 
 		// here need check if SDK is exists
-		// String sfdk_path = String(p_preset->get(prop_sailfish_sdk_path));
+		// String sfdk_path = String(p_preset->get(prop_auroraos_sdk_path));
 		sdk_path = EDITOR_GET(prop_editor_sdk_path);
 		if (!DirAccess::exists(sdk_path)) {
-			sdk_path = String(p_preset->get(prop_sailfish_sdk_path));
+			sdk_path = String(p_preset->get(prop_auroraos_sdk_path));
 			if (!DirAccess::exists(sdk_path)) {
-				r_error = TTR("Wrong SailfishSDK path. Setup it in \nEditor->Settings->Export->Sailfish->SDK Path,\nor setup it for current project\n");
+				r_error = TTR("Wrong AuroraSDK path. Setup it in \nEditor->Settings->Export->AuroraOS->SDK Path,\nor setup it for current project\n");
 				return false;
 			}
 		}
@@ -997,7 +995,7 @@ public:
 		FileAccessRef sdk_release_file = FileAccess::open(sdk_path + separator + String("sdk-release"), FileAccess::READ, &err);
 
 		if (err != Error::OK) {
-			r_error = TTR("Wrong SailfishSDK path: cant find \"sdk-release\" file\n");
+			r_error = TTR("Wrong AuroraSDK path: cant find \"sdk-release\" file\n");
 			return false;
 		}
 		bool wrong_sdk_version = false;
@@ -1021,12 +1019,12 @@ public:
 						if (int(names[1]) > 3) {
 							wrong_sdk_version = false;
 						} else if (int(names[1]) < 3) {
-							r_error = TTR("Minimum SailfishSDK version is 3.0.7, current is ") + current_line.split("=")[1];
+							r_error = TTR("Minimum AuroraSDK version is 3.0.7, current is ") + current_line.split("=")[1];
 							wrong_sdk_version = true;
 						} else if (int(names[2]) > 0) {
 							wrong_sdk_version = false;
 						} else if (int(names[3]) < 7) {
-							r_error = TTR("Minimum SailfishSDK version is 3.0.7, current is ") + current_line.split("=")[1];
+							r_error = TTR("Minimum AuroraSDK version is 3.0.7, current is ") + current_line.split("=")[1];
 							wrong_sdk_version = true;
 						}
 						sdk_version.set(0, int(names[1]));
@@ -1034,7 +1032,7 @@ public:
 						sdk_version.set(2, int(names[3]));
 					}
 				} else {
-					r_error = TTR("Cant parse \"sdk-release\" file in SailfishSDK directory");
+					r_error = TTR("Cant parse \"sdk-release\" file in AuroraSDK directory");
 					wrong_sdk_version = true;
 				}
 			} else if (splitted[0] == String("SDK_CONFIG_DIR")) {
@@ -1043,7 +1041,7 @@ public:
 		}
 		sdk_release_file->close();
 		if (wrong_sdk_version) {
-			//r_error = TTR("Wrong SailfishSDK path: cant find \"sdk-release\" file");
+			//r_error = TTR("Wrong AuroraSDK path: cant find \"sdk-release\" file");
 			return false;
 		}
 
@@ -1060,20 +1058,20 @@ public:
 			sfdk_path += String(".exe");
 #endif
 			if (err != Error::OK || !da || !da->file_exists(sfdk_path)) {
-				r_error = TTR("Wrong SailfishSDK path or sfdk tool not exists");
+				r_error = TTR("Wrong AuroraSDK path or sfdk tool not exists");
 				return false;
 			}
 		} else {
 			sfdk_path = EDITOR_GET(prop_editor_ssh_tool_path);
 
 			if (err != Error::OK || !da || !da->file_exists(sfdk_path)) {
-				r_error = TTR("Wrong SSH tool path. Setup it in Editor->Settings->Export->Sailfish");
+				r_error = TTR("Wrong SSH tool path. Setup it in Editor->Settings->Export->AuroraOS");
 				return false;
 			}
 
 			String rsa_key = sdk_path + String(mersdk_rsa_key);
 			if (!da->file_exists(rsa_key)) {
-				r_error = TTR("Cant find RSA key for acces to build engine. Try use SailfishIDE for generate keys.");
+				r_error = TTR("Cant find RSA key for acces to build engine. Try use AuroraOSIDE for generate keys.");
 				return false;
 			}
 		}
@@ -1118,7 +1116,7 @@ public:
 		bool result = true;
 		String suffix = icon.right(icon.length() - 3).to_lower();
 		if (suffix != String("png")) {
-			r_error += TTR("Icon file should be PNG. Set up custom icon for Sailfish, or change icon of project");
+			r_error += TTR("Icon file should be PNG. Set up custom icon for AuroraOS, or change icon of project");
 			result = false;
 		}
 		// --- Package name ------------------------------------------
@@ -1157,7 +1155,7 @@ public:
 		if ( shared_home.empty() || shared_src.empty() || 
 			 (export_path.find(shared_home) < 0 && export_path.find(shared_src) < 0) ) {
 			result = false;
-			r_error += TTR("Export path is outside of Shared Home in SailfishSDK (choose export path inside shared home):\nSharedHome: ") + shared_home + String("\nShareedSource: ") + shared_src;
+			r_error += TTR("Export path is outside of Shared Home in AuroraSDK (choose export path inside shared home):\nSharedHome: ") + shared_home + String("\nShareedSource: ") + shared_src;
 		}
 
 		if (p_preset->get(prop_aurora_sign_enable)) {
@@ -1184,9 +1182,9 @@ public:
 	Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) override {
 		ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
 
-		EditorProgress ep("export", "Exporting for SailfishOS", 100, true);
+		EditorProgress ep("export", "Exporting for AuroraOS", 100, true);
 
-		String sdk_path = p_preset->get(prop_sailfish_sdk_path);
+		String sdk_path = p_preset->get(prop_auroraos_sdk_path);
 		String sdk_configs_path = OS::get_singleton()->get_config_path();
 		String sfdk_tool = get_sfdk_path(p_preset);
 
@@ -1287,7 +1285,7 @@ public:
 				result_cmd += String("\n") + e->get();
 				e = e->next();
 			}
-			EditorNode::get_singleton()->show_warning(TTR("Building of Sailfish RPM failed, check output for the error.\nAlternatively visit docs.godotengine.org for Sailfish build documentation.\n Output: ") + result_cmd);
+			EditorNode::get_singleton()->show_warning(TTR("Building of AuroraOS RPM failed, check output for the error.\nAlternatively visit docs.godotengine.org for AuroraOS build documentation.\n Output: ") + result_cmd);
 			return ERR_CANT_CREATE;
 		} else {
 			// parse export targets, and choose two latest targets
@@ -1295,7 +1293,7 @@ public:
 			while (e) {
 				String entry = e->get();
 				print_verbose(entry);
-				RegEx regex(".*(SailfishOS|AuroraOS)-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)(-base)?-(armv7hl|i486|aarch64).*");
+				RegEx regex(".*(AuroraOS|AuroraOS)-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)(-base)?-(armv7hl|i486|aarch64).*");
 				Array matches = regex.search_all(entry);
 				// print_verbose( String("Matches size: ") + Variant(matches.size()) );
 				for (int mi = 0; mi < matches.size(); mi++) {
@@ -1432,18 +1430,18 @@ protected:
 	mutable SDKConnectType sdk_connection_type;
 };
 
-void register_sailfish_exporter() {
+void register_auroraos_exporter() {
 	String exe_ext;
 	if (OS::get_singleton()->get_name() == "Windows") {
 		exe_ext = "*.exe";
 	}
 
-	Ref<EditorExportPlatformSailfish> platform;
+	Ref<EditorExportPlatformAuroraOS> platform;
 	// Ref<EditorExportPlatformPC> p;
 	
 	platform.instance();
 
-	Ref<Image> img = memnew(Image(_sailfish_logo));
+	Ref<Image> img = memnew(Image(_auroraos_logo));
 	Ref<ImageTexture> logo;
 	logo.instance();
 	logo->create_from_image(img);

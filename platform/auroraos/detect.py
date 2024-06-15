@@ -8,7 +8,7 @@ def is_active():
 
 
 def get_name():
-    return "SailfishOS"
+    return "AuroraOS"
 
 
 def can_build():
@@ -25,7 +25,7 @@ def can_build():
 
     sdl_error = os.system("pkg-config sdl2 --modversion > /dev/null ")
     if (sdl_error):
-       print("SDL2 not found. Sailfish build disabled. Install SDL2-devel for all your targets in MerSDK ")
+       print("SDL2 not found. AuroraOS build disabled. Install SDL2-devel for all your targets in MerSDK ")
        return False
     else:
         print("SDL2-devel is found")
@@ -162,8 +162,8 @@ def configure(env):
     else:
         env.Append(CCFLAGS=["-I" + env["sdl_path"]] )
 
-    env.Append(CPPPATH=['#platform/sailfish/SDL2-2.0.9/src'])
-    env.Append(CPPFLAGS=['-D__SAILFISH_PLATFORM__'])
+    env.Append(CPPPATH=['#platform/auroraos/SDL2-2.0.9/src'])
+    env.Append(CPPFLAGS=['-D__AURORAOS_PLATFORM__'])
     env.ParseConfig('pkg-config wayland-client --cflags --libs')
     # ar_error = os.system("pkg-config audioresource --modversion > /dev/null")
     # if(ar_error):
@@ -282,15 +282,15 @@ def configure(env):
     if not env['builtin_zlib']:
         env.ParseConfig('pkg-config zlib --cflags --libs')
 
-    env.Append(CPPPATH=['#platform/sailfish','#core', '#thirdparty/glad', '#platform/sailfish/outputsdl/include', '#platform/sailfish/SDL_src/src'])
+    env.Append(CPPPATH=['#platform/auroraos','#core', '#thirdparty/glad', '#platform/auroraos/outputsdl/include', '#platform/auroraos/SDL_src/src'])
     env.Append(CPPFLAGS=['-DSDL_ENABLED', '-DUNIX_ENABLED', '-DGLES_ENABLED', '-DGLES2_ENABLED', '-Wno-strict-aliasing'])
-    env.Append(CPPFLAGS=['-DSAILFISH_ENABLED'])  
-    env.Append(CPPFLAGS=['-DSAILFISH_FORCE_LANDSCAPE']) 
-    # include paths for different versions of SailfishSDK width different SDL2 version  
+    env.Append(CPPFLAGS=['-DAURORAOS_ENABLED'])  
+    env.Append(CPPFLAGS=['-DAURORAOS_FORCE_LANDSCAPE']) 
+    # include paths for different versions of AuroraSDK width different SDL2 version  
     env.Append(LIBS=['GLESv2', 'EGL', 'pthread'])
 
     if( env['arch'] == "x86" ): 
-        env.Append(CPPFLAGS=['-DSAILFISH_i486_GLES2'])
+        env.Append(CPPFLAGS=['-DAURORAOS_i486_GLES2'])
 
     if (platform.system() == "Linux"):
         env.Append(LIBS=['dl'])
