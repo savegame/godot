@@ -102,7 +102,7 @@ GLuint RasterizerStorageGLES2::system_fbo = 0;
 //void *glRenderbufferStorageMultisampleAPPLE;
 //void *glResolveMultisampleFramebufferAPPLE;
 #define glRenderbufferStorageMultisample glRenderbufferStorageMultisampleAPPLE
-#elif defined(ANDROID_ENABLED)
+#elif defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 
 #include <GLES2/gl2ext.h>
 PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC glRenderbufferStorageMultisampleEXT;
@@ -5239,7 +5239,7 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 		glRenderbufferStorageMultisample(GL_RENDERBUFFER, msaa, color_internal_format, rt->width, rt->height);
 
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rt->multisample_color);
-#elif defined(ANDROID_ENABLED)
+#elif defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 		// Render to a texture in android
 		glGenTextures(1, &rt->multisample_color);
 		glBindTexture(GL_TEXTURE_2D, rt->multisample_color);
@@ -5267,7 +5267,7 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 
 			glDeleteRenderbuffers(1, &rt->multisample_depth);
 			rt->multisample_depth = 0;
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 			glDeleteTextures(1, &rt->multisample_color);
 #else
 			glDeleteRenderbuffers(1, &rt->multisample_color);
@@ -5277,7 +5277,7 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 		glBindTexture(GL_TEXTURE_2D, 0);
 #endif
 
@@ -5514,7 +5514,7 @@ void RasterizerStorageGLES2::_render_target_clear(RenderTarget *rt) {
 
 		glDeleteRenderbuffers(1, &rt->multisample_depth);
 		rt->multisample_depth = 0;
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 		glDeleteTextures(1, &rt->multisample_color);
 #else
 		glDeleteRenderbuffers(1, &rt->multisample_color);

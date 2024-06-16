@@ -363,7 +363,7 @@ void main() {
 				instance_xform_row_1,
 				instance_xform_row_2,
 				vec4(0.0, 0.0, 0.0, 1.0));
-		world_matrix = world_matrix * transpose(m);
+		world_matrix = world_matrix * TRANSPOSE_FUNC_NAME(m);
 	}
 
 #endif
@@ -407,7 +407,7 @@ void main() {
 #if !defined(SKIP_TRANSFORM_USED) && defined(VERTEX_WORLD_COORDS_USED)
 	vertex = world_matrix * vertex;
 #if defined(ENSURE_CORRECT_NORMALS)
-	mat3 normal_matrix = mat3(transpose(inverse(world_matrix)));
+	mat3 normal_matrix = mat3(TRANSPOSE_FUNC_NAME(inverse(world_matrix)));
 	normal = normal_matrix * normal;
 #else
 	normal = normalize((world_matrix * vec4(normal, 0.0)).xyz);
@@ -512,7 +512,7 @@ VERTEX_SHADER_CODE
 #if !defined(SKIP_TRANSFORM_USED) && !defined(VERTEX_WORLD_COORDS_USED)
 	vertex = modelview * vertex;
 #if defined(ENSURE_CORRECT_NORMALS)
-	mat3 normal_matrix = mat3(transpose(inverse(modelview)));
+	mat3 normal_matrix = mat3(TRANSPOSE_FUNC_NAME(inverse(modelview)));
 	normal = normal_matrix * normal;
 #else
 	normal = normalize((modelview * vec4(normal, 0.0)).xyz);
