@@ -85,6 +85,8 @@
 #include "core/os/thread.h"
 #include "servers/display_server.h"
 
+#include <vector>
+
 class WaylandThread {
 public:
 	// Messages used for exchanging information between Godot's and Wayland's thread.
@@ -309,6 +311,36 @@ public:
 		CONFINED,
 	};
 
+	enum class TouchState {
+		NONE,
+		UP,
+		DOWN,
+		MOTION
+	};
+
+	struct TouchData {
+		int32_t    id = -1;
+		bool       pressed = false;
+		uint32_t   down_time = 0;
+		uint32_t   motion_time = 0;
+		Point2     position;
+		Point2     relative_motion;
+		uint32_t   relative_motion_time = 0;
+		TouchState state = TouchState::NONE;
+
+		TouchData &operator=(const TouchData &other) {
+			id = other.id;
+			pressed = other.pressed;
+			down_time = other.down_time;
+			motion_time = other.motion_time;
+			position = other.position;
+			relative_motion = other.relative_motion;
+			relative_motion_time = other.relative_motion_time;
+			state = other.state;
+			return *this;
+		}
+	};
+
 	struct PointerData {
 		Point2 position;
 		uint32_t motion_time = 0;
@@ -383,6 +415,9 @@ public:
 		struct wl_seat *wl_seat = nullptr;
 		uint32_t wl_seat_name = 0;
 
+		// Touch
+		struct wl_touch *wl_touch = nullptr;
+
 		// Pointer.
 		struct wl_pointer *wl_pointer = nullptr;
 
@@ -417,6 +452,10 @@ public:
 		// `pointer_data` and write to `data_buffer`.
 		PointerData pointer_data_buffer;
 		PointerData pointer_data;
+
+		// Touch (same as with PointerData, with buffer)
+		std::vector<TouchData> touch_data_buffer;
+		std::vector<TouchData> touch_data;
 
 		// Keyboard.
 		struct wl_keyboard *wl_keyboard = nullptr;
@@ -567,6 +606,14 @@ private:
 	static void _wl_seat_on_name(void *data, struct wl_seat *wl_seat, const char *name);
 
 	static void _cursor_frame_callback_on_done(void *data, struct wl_callback *wl_callback, uint32_t time_ms);
+
+	static void _wl_touch_listener_on_down(void *data, struct wl_touch *wl_touch, uint32_t serial, uint32_t time, struct wl_surface *surface, int32_t id, wl_fixed_t x, wl_fixed_t y);
+	static void _wl_touch_listener_on_up(void *data, struct wl_touch *wl_touch, uint32_t serial, uint32_t time, int32_t id);
+	static void _wl_touch_listener_on_motion(void *data, struct wl_touch *wl_touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y);
+	static void _wl_touch_listener_on_frame(void *data, struct wl_touch *wl_touch);
+	static void _wl_touch_listener_on_cancel(void *data, struct wl_touch *wl_touch);
+	static void _wl_touch_listener_on_shape(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t major, wl_fixed_t minor);
+	static void _wl_touch_listener_on_orientation(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t orientation);
 
 	static void _wl_pointer_on_enter(void *data, struct wl_pointer *wl_pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y);
 	static void _wl_pointer_on_leave(void *data, struct wl_pointer *wl_pointer, uint32_t serial, struct wl_surface *surface);
@@ -719,6 +766,16 @@ private:
 		.axis_discrete = _wl_pointer_on_axis_discrete,
 		.axis_value120 = _wl_pointer_on_axis_value120,
 		.axis_relative_direction = _wl_pointer_on_axis_relative_direction,
+	};
+
+	static constexpr struct wl_touch_listener wl_touch_listener = {
+		.down = _wl_touch_listener_on_down,
+		.up = _wl_touch_listener_on_up,
+		.motion = _wl_touch_listener_on_motion,
+		.frame = _wl_touch_listener_on_frame,
+		.cancel = _wl_touch_listener_on_cancel,
+		.shape = _wl_touch_listener_on_shape,
+		.orientation = _wl_touch_listener_on_orientation,
 	};
 
 	static constexpr struct wl_keyboard_listener wl_keyboard_listener = {
