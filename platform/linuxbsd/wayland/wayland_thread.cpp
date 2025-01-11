@@ -1361,7 +1361,22 @@ void WaylandThread::_wl_seat_on_capabilities(void *data, struct wl_seat *wl_seat
 
 	ERR_FAIL_NULL(ss);
 
-	// TODO: Handle touch.
+	// Handle touch.
+	if (capabilities & WL_SEAT_CAPABILITY_TOUCH) {
+		if (!ss->wl_touch) {
+			ss->wl_touch = wl_seat_get_touch(wl_seat);
+			ss->touch_data_buffer.reserve(10);
+			ss->touch_data.reserve(10);
+			wl_touch_add_listener(ss->wl_touch, &wl_touch_listener, ss);
+		}
+	} else {
+		if (ss->wl_touch) {
+			wl_touch_destroy(ss->wl_touch);
+			ss->wl_touch = nullptr;
+			ss->touch_data_buffer.clear();
+			ss->touch_data.clear();
+		}
+	}
 
 	// Pointer handling.
 	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
@@ -1455,6 +1470,169 @@ void WaylandThread::_cursor_frame_callback_on_done(void *data, struct wl_callbac
 	ss->cursor_time_ms = time_ms;
 
 	seat_state_update_cursor(ss);
+}
+
+void WaylandThread::_wl_touch_listener_on_down(void *data, struct wl_touch *wl_touch, uint32_t serial, uint32_t time, struct wl_surface *surface, int32_t id, wl_fixed_t x, wl_fixed_t y) {
+	if (!surface || !wl_proxy_is_godot((struct wl_proxy *)surface)) {
+		return;
+	}
+
+	DEBUG_LOG_WAYLAND_THREAD(vformat("Handle _wl_touch_listener_on_down. id %d", id));
+
+	SeatState *ss = (SeatState *)data;
+	ERR_FAIL_NULL(ss);
+
+	TouchData touch;
+	touch.id = id;
+	touch.state = TouchState::DOWN;
+	touch.pressed = true;
+	touch.down_time = time;
+	touch.motion_time = time;
+	touch.relative_motion_time = 0;
+	touch.position = {
+			real_t(wl_fixed_to_double(x)),
+			real_t(wl_fixed_to_double(y)),
+	};
+	touch.relative_motion = {0, 0};
+
+	for (auto i = 0; i < ss->touch_data_buffer.size(); i++) {
+		if (ss->touch_data_buffer[i].id == id || ss->touch_data_buffer[i].id == -1) {
+			ss->touch_data_buffer[i] = touch;
+			return;
+		}
+	}
+
+	#define MAX_TOUCH_ERROR 100
+	if (ss->touch_data_buffer.size() >= MAX_TOUCH_ERROR) {
+		ERR_PRINT(vformat("Too match touch id's! More than %d. Clear touch buffer.", MAX_TOUCH_ERROR));
+		ss->touch_data_buffer.clear();
+	}
+
+	ss->touch_data_buffer.push_back(touch);
+}
+
+void WaylandThread::_wl_touch_listener_on_up(void *data, struct wl_touch *wl_touch, uint32_t serial, uint32_t time, int32_t id) {
+	DEBUG_LOG_WAYLAND_THREAD(vformat("Handle _wl_touch_listener_on_up: id %d", id));
+
+	SeatState *ss = (SeatState *)data;
+	ERR_FAIL_NULL(ss);
+
+	for (auto i = 0; i < ss->touch_data_buffer.size(); i++) {
+		if (ss->touch_data_buffer[i].id == id) {
+			TouchData &touch = ss->touch_data_buffer[i];
+			touch.state = TouchState::UP;
+			touch.pressed = false;
+			touch.motion_time = touch.down_time + 1;
+			return;
+		}
+	}
+
+	ERR_PRINT(vformat("Touch with id %d not found! But FINGER_UP event was recieved!", id));
+}
+
+void WaylandThread::_wl_touch_listener_on_motion(void *data, struct wl_touch *wl_touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y) {
+	static int error_count = 0;
+
+	SeatState *ss = (SeatState *)data;
+	ERR_FAIL_NULL(ss);
+
+	for (auto i = 0; i < ss->touch_data_buffer.size(); i++) {
+		if (ss->touch_data_buffer[i].id == id) {
+			TouchData &touch = ss->touch_data_buffer[i];
+			touch.position = {
+				real_t(wl_fixed_to_double(x)),
+				real_t(wl_fixed_to_double(y))
+			};
+			touch.motion_time = time;
+			touch.state = TouchState::MOTION;
+			return;
+		}
+	}
+
+	if (error_count == 0) {
+		ERR_PRINT(vformat("Touch with id %d not found! But FINGER_MOTION event was recieved!", id));
+	}
+
+	error_count++;
+	if (error_count == 100) {
+		error_count = 0;
+	}
+}
+
+void WaylandThread::_wl_touch_listener_on_frame(void *data, struct wl_touch *wl_touch) {
+
+	SeatState *ss = (SeatState *)data;
+	ERR_FAIL_NULL(ss);
+
+	WaylandThread *wayland_thread = ss->wayland_thread;
+	ERR_FAIL_NULL(wayland_thread);
+
+	wayland_thread->_set_current_seat(ss->wl_seat);
+
+	// copy buffered touches to thread
+	for (auto buffer_i = 0; buffer_i < ss->touch_data_buffer.size(); buffer_i++) {
+		TouchData &touch = ss->touch_data_buffer[buffer_i];
+
+		auto old_i = 0;
+		for (; old_i < ss->touch_data.size(); old_i++) {
+			if (touch.state == TouchState::MOTION && ss->touch_data[old_i].id == touch.id) {
+				touch.relative_motion = {
+					touch.position.x - ss->touch_data[old_i].position.x,
+					touch.position.y - ss->touch_data[old_i].position.y,
+				};
+				touch.relative_motion_time = touch.motion_time - ss->touch_data[old_i].motion_time;
+				break;
+			}
+		}
+		if (old_i == ss->touch_data.size()) {
+			ss->touch_data.push_back(touch);
+		}
+
+		if (touch.state == TouchState::DOWN || touch.state == TouchState::UP) {
+			Ref<InputEventScreenTouch> st;
+			st.instantiate();
+			st->set_index(buffer_i);
+			st->set_pressed(touch.state == TouchState::DOWN);
+			st->set_position(touch.position);
+			st->set_double_tap(false); // TODO: calculate double tap : 400ms and distance lower than 5 (or in pysichal 3 mm)
+
+			Ref<InputEventMessage> msg;
+			msg.instantiate();
+			msg->event = st;
+
+			ss->wayland_thread->push_message(msg);
+		}
+		else if (touch.state == TouchState::MOTION) {
+			Ref<InputEventScreenDrag> st;
+			st.instantiate();
+			st->set_index(buffer_i);
+			st->set_position(touch.position);
+			st->set_relative(touch.relative_motion);
+			st->set_velocity(touch.relative_motion / touch.relative_motion_time);
+
+			Ref<InputEventMessage> msg;
+			msg.instantiate();
+			msg->event = st;
+
+			ss->wayland_thread->push_message(msg);
+		}
+
+		touch.state = TouchState::NONE;
+	}
+
+	ss->touch_data = ss->touch_data_buffer;
+}
+
+void WaylandThread::_wl_touch_listener_on_cancel(void *data, struct wl_touch *wl_touch) {
+	DEBUG_LOG_WAYLAND_THREAD("Handle _wl_touch_listener_on_cancel")
+}
+
+void WaylandThread::_wl_touch_listener_on_shape(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t major, wl_fixed_t minor) {
+	DEBUG_LOG_WAYLAND_THREAD("Handle _wl_touch_listener_on_shape")
+}
+
+void WaylandThread::_wl_touch_listener_on_orientation(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t orientation) {
+	DEBUG_LOG_WAYLAND_THREAD("Handle _wl_touch_listener_on_orientation")
 }
 
 void WaylandThread::_wl_pointer_on_enter(void *data, struct wl_pointer *wl_pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
