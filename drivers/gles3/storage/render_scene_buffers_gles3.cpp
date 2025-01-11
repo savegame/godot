@@ -35,7 +35,7 @@
 #include "texture_storage.h"
 #include "utilities.h"
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 #define glFramebufferTextureMultiviewOVR GLES3::Config::get_singleton()->eglFramebufferTextureMultiviewOVR
 #define glTexStorage3DMultisample GLES3::Config::get_singleton()->eglTexStorage3DMultisample
 #define glFramebufferTexture2DMultisampleEXT GLES3::Config::get_singleton()->eglFramebufferTexture2DMultisampleEXT
@@ -68,7 +68,7 @@ void RenderSceneBuffersGLES3::_rt_attach_textures(GLuint p_color, GLuint p_depth
 			ERR_PRINT_ONCE("Multiview MSAA isn't supported on this platform.");
 #endif
 		} else {
-#ifndef IOS_ENABLED
+#if !defined(IOS_ENABLED) && !defined(AURORAOS_ENABLED)
 			glFramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, p_color, 0, 0, p_view_count);
 			glFramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, p_depth, 0, 0, p_view_count);
 #else
@@ -77,7 +77,7 @@ void RenderSceneBuffersGLES3::_rt_attach_textures(GLuint p_color, GLuint p_depth
 		}
 	} else {
 		if (p_samples > 1) {
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED)
 			glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, p_color, 0, p_samples);
 			glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, p_depth, 0, p_samples);
 #else
@@ -93,7 +93,7 @@ void RenderSceneBuffersGLES3::_rt_attach_textures(GLuint p_color, GLuint p_depth
 GLuint RenderSceneBuffersGLES3::_rt_get_cached_fbo(GLuint p_color, GLuint p_depth, GLsizei p_samples, uint32_t p_view_count) {
 	FBDEF new_fbo;
 
-#if defined(ANDROID_ENABLED) || defined(WEB_ENABLED)
+#if defined(ANDROID_ENABLED) || defined(WEB_ENABLED) || defined(AURORAOS_ENABLED)
 	// There shouldn't be more then 3 entries in this...
 	for (const FBDEF &cached_fbo : msaa3d.cached_fbos) {
 		if (cached_fbo.color == p_color && cached_fbo.depth == p_depth) {
@@ -328,7 +328,7 @@ void RenderSceneBuffersGLES3::_check_render_buffers() {
 			glGenTextures(1, &msaa3d.color);
 			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, msaa3d.color);
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 			glTexStorage3DMultisample(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, msaa3d.samples, color_internal_format, internal_size.x, internal_size.y, view_count, GL_TRUE);
 #else
 			glTexImage3DMultisample(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, msaa3d.samples, color_internal_format, internal_size.x, internal_size.y, view_count, GL_TRUE);
@@ -340,7 +340,7 @@ void RenderSceneBuffersGLES3::_check_render_buffers() {
 			glGenTextures(1, &msaa3d.depth);
 			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, msaa3d.depth);
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 			glTexStorage3DMultisample(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, msaa3d.samples, GL_DEPTH_COMPONENT24, internal_size.x, internal_size.y, view_count, GL_TRUE);
 #else
 			glTexImage3DMultisample(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, msaa3d.samples, GL_DEPTH_COMPONENT24, internal_size.x, internal_size.y, view_count, GL_TRUE);
@@ -365,7 +365,7 @@ void RenderSceneBuffersGLES3::_check_render_buffers() {
 			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, 0);
 			glBindFramebuffer(GL_FRAMEBUFFER, GLES3::TextureStorage::system_fbo);
 #endif
-#if defined(ANDROID_ENABLED) || defined(WEB_ENABLED) // Only supported on OpenGLES!
+#if defined(ANDROID_ENABLED) || defined(WEB_ENABLED) || defined(AURORAOS_ENABLED)// Only supported on OpenGLES!
 		} else if (!use_internal_buffer) {
 			// We are going to render directly into our render target textures,
 			// these can change from frame to frame as we cycle through swapchains,

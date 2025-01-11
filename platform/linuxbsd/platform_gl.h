@@ -31,7 +31,7 @@
 #ifndef PLATFORM_GL_H
 #define PLATFORM_GL_H
 
-#ifndef GL_API_ENABLED
+#if !defined(GL_API_ENABLED) && !defined(AURORAOS_ENABLED)
 #define GL_API_ENABLED // Allow using desktop GL.
 #endif
 
@@ -39,7 +39,17 @@
 #define GLES_API_ENABLED // Allow using GLES.
 #endif
 
+#ifdef GLAD_ENABLED
 #include "thirdparty/glad/glad/egl.h"
 #include "thirdparty/glad/glad/gl.h"
+#else
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl31.h>
+#include <GLES3/gl32.h>
+#include <GLES3/gl3ext.h>
+#include <GLES3/gl3platform.h>
+#endif
 
 #endif // PLATFORM_GL_H

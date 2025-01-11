@@ -95,8 +95,8 @@ int EGLManager::_get_gldisplay_id(void *p_display) {
 		new_gldisplay.egl_display = eglGetPlatformDisplayEXT(_get_platform_extension_enum(), new_gldisplay.display, (attribs.size() > 0) ? attribs.ptr() : nullptr);
 #endif // EGL_EXT_platform_base
 	} else {
-		NativeDisplayType *native_display_type = (NativeDisplayType *)new_gldisplay.display;
-		new_gldisplay.egl_display = eglGetDisplay(*native_display_type);
+		NativeDisplayType native_display_type = (NativeDisplayType)new_gldisplay.display;
+		new_gldisplay.egl_display = eglGetDisplay(native_display_type);
 	}
 
 	ERR_FAIL_COND_V(eglGetError() != EGL_SUCCESS, -1);
@@ -287,8 +287,8 @@ Error EGLManager::window_create(DisplayServer::WindowID p_window_id, void *p_dis
 	if (GLAD_EGL_VERSION_1_5) {
 		glwindow.egl_surface = eglCreatePlatformWindowSurface(gldisplay.egl_display, gldisplay.egl_config, p_native_window, egl_attribs.ptr());
 	} else {
-		EGLNativeWindowType *native_window_type = (EGLNativeWindowType *)p_native_window;
-		glwindow.egl_surface = eglCreateWindowSurface(gldisplay.egl_display, gldisplay.egl_config, *native_window_type, nullptr);
+		EGLNativeWindowType native_window_type = (EGLNativeWindowType)p_native_window;
+		glwindow.egl_surface = eglCreateWindowSurface(gldisplay.egl_display, gldisplay.egl_config, native_window_type, nullptr);
 	}
 
 	if (glwindow.egl_surface == EGL_NO_SURFACE) {
@@ -462,8 +462,8 @@ Error EGLManager::initialize(void *p_native_display) {
 #endif // EGL_EXT_platform_base
 	} else {
 		WARN_PRINT("EGL: EGL_EXT_platform_base not found during init, using default platform.");
-		EGLNativeDisplayType *native_display_type = (EGLNativeDisplayType *)p_native_display;
-		tmp_display = eglGetDisplay(*native_display_type);
+		EGLNativeDisplayType native_display_type = (EGLNativeDisplayType)p_native_display;
+		tmp_display = eglGetDisplay(native_display_type);
 	}
 
 	if (tmp_display == EGL_NO_DISPLAY) {
@@ -519,7 +519,11 @@ Error EGLManager::initialize(void *p_native_display) {
 	if (eglGetError() == EGL_SUCCESS) {
 		const char *platform = _get_platform_extension_name();
 		if (!client_extensions_string.split(" ").has(platform)) {
+#ifdef AURORAOS_ENABLED
+			WARN_PRINT(vformat("EGL platform extension \"%s\" not found. But it not need on AuroraOS.", platform));
+#else
 			ERR_FAIL_V_MSG(ERR_UNAVAILABLE, vformat("EGL platform extension \"%s\" not found.", platform));
+#endif
 		}
 	}
 

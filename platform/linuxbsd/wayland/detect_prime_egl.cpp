@@ -99,7 +99,11 @@ void DetectPrimeEGL::create_context(EGLenum p_platform_enum) {
 
 	EGLint context_attribs[] = {
 		EGL_CONTEXT_MAJOR_VERSION, 3,
+#if defined(AURORAOS_ENABLED)
+		EGL_CONTEXT_MINOR_VERSION, 0,
+#else
 		EGL_CONTEXT_MINOR_VERSION, 3,
+#endif
 		EGL_NONE
 	};
 

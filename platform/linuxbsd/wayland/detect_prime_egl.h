@@ -40,9 +40,19 @@
 #else
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#if !defined(AURORAOS_ENABLED)
 #include <GL/glcorearb.h>
 
 #define GLAD_EGL_VERSION_1_5 1
+#else
+#include <GLES3/gl3.h>
+#include <GLES3/gl31.h>
+#include <GLES3/gl32.h>
+#include <GLES3/gl3ext.h>
+#include <GLES3/gl3platform.h>
+
+#define GLAD_EGL_VERSION_1_5 0
+#endif
 
 #ifdef EGL_EXT_platform_base
 #define GLAD_EGL_EXT_platform_base 1

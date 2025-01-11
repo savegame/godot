@@ -77,6 +77,15 @@ def configure(env: "SConsEnvironment"):
     supported_arches = ["x86_32", "x86_64", "arm32", "arm64", "rv64", "ppc32", "ppc64", "loongarch64"]
     validate_arch(env["arch"], get_name(), supported_arches)
 
+    # Check if we build for AuroraOS
+    if env["auroraos"]:
+        env.Append(CPPDEFINES=["AURORAOS_ENABLED"])
+        env["x11"] = False
+        env["libdecor"] = False
+        env["wayland"] = True
+        env["alsa"] = False
+
+
     ## Build type
 
     if env.dev_build:

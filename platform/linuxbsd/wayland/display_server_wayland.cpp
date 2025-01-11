@@ -1483,6 +1483,7 @@ DisplayServerWayland::DisplayServerWayland(const String &p_rendering_driver, Win
 		}
 #endif // SOWRAP_ENABLED
 
+#ifndef AURORAOS_ENABLED
 		if (getenv("DRI_PRIME") == nullptr) {
 			int prime_idx = -1;
 
@@ -1524,6 +1525,7 @@ DisplayServerWayland::DisplayServerWayland(const String &p_rendering_driver, Win
 				setenv("DRI_PRIME", itos(prime_idx).utf8().ptr(), 1);
 			}
 		}
+#endif
 
 		if (rendering_driver == "opengl3") {
 			egl_manager = memnew(EGLManagerWayland);

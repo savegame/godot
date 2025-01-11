@@ -832,7 +832,7 @@ void TextureStorage::texture_external_initialize(RID p_texture, int p_width, int
 	glGenTextures(1, &texture.tex_id);
 	glBindTexture(texture.target, texture.tex_id);
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 	if (texture.target == _GL_TEXTURE_EXTERNAL_OES) {
 		if (p_external_buffer) {
 			GLES3::Config::get_singleton()->eglEGLImageTargetTexture2DOES(_GL_TEXTURE_EXTERNAL_OES, reinterpret_cast<void *>(p_external_buffer));
@@ -1025,7 +1025,7 @@ void TextureStorage::texture_external_update(RID p_texture, int p_width, int p_h
 	tex->alloc_width = tex->width = p_width;
 	tex->alloc_height = tex->height = p_height;
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 	if (tex->target == _GL_TEXTURE_EXTERNAL_OES && p_external_buffer) {
 		glBindTexture(_GL_TEXTURE_EXTERNAL_OES, tex->tex_id);
 		GLES3::Config::get_singleton()->eglEGLImageTargetTexture2DOES(_GL_TEXTURE_EXTERNAL_OES, reinterpret_cast<void *>(p_external_buffer));
@@ -2164,7 +2164,7 @@ void TextureStorage::_update_render_target(RenderTarget *rt) {
 
 			GLES3::Utilities::get_singleton()->texture_allocated_data(rt->color, rt->size.x * rt->size.y * rt->view_count * rt->color_format_size, "Render target color texture");
 		}
-#ifndef IOS_ENABLED
+#if !defined(IOS_ENABLED) && !defined(AURORAOS_ENABLED)
 		if (use_multiview) {
 			glFramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rt->color, 0, 0, rt->view_count);
 		} else {
@@ -2197,7 +2197,7 @@ void TextureStorage::_update_render_target(RenderTarget *rt) {
 
 			GLES3::Utilities::get_singleton()->texture_allocated_data(rt->depth, rt->size.x * rt->size.y * rt->view_count * 3, "Render target depth texture");
 		}
-#ifndef IOS_ENABLED
+#if !defined(IOS_ENABLED) && !defined(AURORAOS_ENABLED)
 		if (use_multiview) {
 			glFramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, rt->depth, 0, 0, rt->view_count);
 		} else {
@@ -2338,7 +2338,7 @@ void GLES3::TextureStorage::check_backbuffer(RenderTarget *rt, const bool uses_s
 		glTexParameteri(texture_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-#ifndef IOS_ENABLED
+#if !defined(IOS_ENABLED) && !defined(AURORAOS_ENABLED)
 		if (use_multiview) {
 			glFramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rt->backbuffer, 0, 0, rt->view_count);
 		} else {
@@ -2362,7 +2362,7 @@ void GLES3::TextureStorage::check_backbuffer(RenderTarget *rt, const bool uses_s
 		glTexParameteri(texture_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-#ifndef IOS_ENABLED
+#if !defined(IOS_ENABLED) && !defined(AURORAOS_ENABLED)
 		if (use_multiview) {
 			glFramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, rt->backbuffer_depth, 0, 0, rt->view_count);
 		} else {

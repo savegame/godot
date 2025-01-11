@@ -839,6 +839,9 @@ void AudioDriverPulseAudio::set_input_device(const String &p_name) {
 }
 
 AudioDriverPulseAudio::AudioDriverPulseAudio() {
+#if defined(AURORAOS_ENABLED)
+	setenv("PULSE_PROP_media.role", "x-maemo", 1);
+#endif
 	samples_in.clear();
 	samples_out.clear();
 }

@@ -142,7 +142,7 @@ Config::Config() {
 	multiview_supported = extensions.has("OCULUS_multiview") || extensions.has("GL_OVR_multiview2") || extensions.has("GL_OVR_multiview");
 #endif
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 	// These are GLES only
 	rt_msaa_supported = extensions.has("GL_EXT_multisampled_render_to_texture");
 	rt_msaa_multiview_supported = extensions.has("GL_OVR_multiview_multisampled_render_to_texture");
