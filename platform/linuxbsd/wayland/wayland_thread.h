@@ -42,6 +42,7 @@
 #include "xkbcommon-so_wrap.h"
 #else
 #include <wayland-client-core.h>
+#include <wayland-client-protocol.h>
 #include <wayland-cursor.h>
 #ifdef GLES3_ENABLED
 #include <wayland-egl-core.h>
@@ -61,6 +62,7 @@
 #include "wayland/protocol/relative_pointer.gen.h"
 #undef pointer
 #include "wayland/protocol/fractional_scale.gen.h"
+#include "wayland/protocol/surface-extension.gen.h"
 #include "wayland/protocol/tablet.gen.h"
 #include "wayland/protocol/text_input.gen.h"
 #include "wayland/protocol/viewporter.gen.h"
@@ -149,6 +151,14 @@ public:
 		List<struct wl_output *> wl_outputs;
 		List<struct wl_seat *> wl_seats;
 
+		// wl_shell back compability
+		struct wl_shell *wl_shell = nullptr;
+		uint32_t wl_shell_name = 0;
+
+		//qt_surface_extension (qtwayland compability)
+		struct qt_surface_extension *qt_surface_extension = nullptr;
+		uint32_t qt_surface_extension_name = 0;
+
 		// xdg-shell globals.
 
 		struct xdg_wm_base *xdg_wm_base = nullptr;
@@ -228,6 +238,8 @@ public:
 		struct wl_callback *frame_callback = nullptr;
 
 		struct wl_surface *wl_surface = nullptr;
+		struct wl_shell_surface *wl_shell_surface = nullptr;
+		struct qt_extended_surface *qt_extended_surface = nullptr;
 		struct xdg_surface *xdg_surface = nullptr;
 		struct xdg_toplevel *xdg_toplevel = nullptr;
 
@@ -652,6 +664,27 @@ private:
 	static void _wl_data_source_on_dnd_finished(void *data, struct wl_data_source *wl_data_source);
 	static void _wl_data_source_on_action(void *data, struct wl_data_source *wl_data_source, uint32_t dnd_action);
 
+	// wl_shell events handlers
+	static void _wl_shell_surface_on_ping(void *data, struct wl_shell_surface *wl_shell_surface,
+			uint32_t serial);
+	static void _wl_shell_surface_on_configure(void *data,
+			struct wl_shell_surface *wl_shell_surface,
+			uint32_t edges,
+			int32_t width,
+			int32_t height);
+	static void _wl_shell_surface_on_popup_done(void *data,
+			struct wl_shell_surface *wl_shell_surface);
+
+	// qt_extended_surface handlers
+	static void _qt_extended_surface_onscreen_visibility(void *data,
+			struct qt_extended_surface *qt_extended_surface,
+			int32_t visible);
+	static void _qt_extended_surface_set_generic_property(void *data,
+			struct qt_extended_surface *qt_extended_surface,
+			const char *name,
+			struct wl_array *value);
+	static void _qt_extended_surface_close(void *data, struct qt_extended_surface *qt_extended_surface);
+
 	// xdg-shell event handlers.
 	static void _xdg_wm_base_on_ping(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial);
 
@@ -728,8 +761,10 @@ private:
 	static constexpr struct wl_surface_listener wl_surface_listener = {
 		.enter = _wl_surface_on_enter,
 		.leave = _wl_surface_on_leave,
+#if !defined(AURORAOS_ENABLED)
 		.preferred_buffer_scale = _wl_surface_on_preferred_buffer_scale,
 		.preferred_buffer_transform = _wl_surface_on_preferred_buffer_transform,
+#endif
 	};
 
 	static constexpr struct wl_callback_listener frame_wl_callback_listener = {
@@ -760,12 +795,14 @@ private:
 		.motion = _wl_pointer_on_motion,
 		.button = _wl_pointer_on_button,
 		.axis = _wl_pointer_on_axis,
+#if !defined(AURORAOS_ENABLED)
 		.frame = _wl_pointer_on_frame,
 		.axis_source = _wl_pointer_on_axis_source,
 		.axis_stop = _wl_pointer_on_axis_stop,
 		.axis_discrete = _wl_pointer_on_axis_discrete,
 		.axis_value120 = _wl_pointer_on_axis_value120,
 		.axis_relative_direction = _wl_pointer_on_axis_relative_direction,
+#endif
 	};
 
 	static constexpr struct wl_touch_listener wl_touch_listener = {
@@ -809,6 +846,18 @@ private:
 		.dnd_drop_performed = _wl_data_source_on_dnd_drop_performed,
 		.dnd_finished = _wl_data_source_on_dnd_finished,
 		.action = _wl_data_source_on_action,
+	};
+
+	static constexpr struct wl_shell_surface_listener wl_shell_surface_listener = {
+		.ping = _wl_shell_surface_on_ping,
+		.configure = _wl_shell_surface_on_configure,
+		.popup_done = _wl_shell_surface_on_popup_done
+	};
+
+	static constexpr struct qt_extended_surface_listener qt_extended_surface_listener = {
+		.onscreen_visibility = _qt_extended_surface_onscreen_visibility,
+		.set_generic_property = _qt_extended_surface_set_generic_property,
+		.close = _qt_extended_surface_close,
 	};
 
 	// xdg-shell event listeners.

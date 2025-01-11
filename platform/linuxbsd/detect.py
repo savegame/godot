@@ -51,6 +51,7 @@ def get_opts():
         BoolVariable("libdecor", "Enable libdecor support", True),
         BoolVariable("touch", "Enable touch events", True),
         BoolVariable("execinfo", "Use libexecinfo on systems where glibc is not available", False),
+        BoolVariable("auroraos", "Build for AuroraOS", False),
     ]
 
 

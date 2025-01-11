@@ -36,7 +36,11 @@
 #include <dev/evdev/input-event-codes.h>
 #else
 // Assume Linux.
+#ifdef AURORAOS_ENABLED
+#include <linux/input.h>
+#else
 #include <linux/input-event-codes.h>
+#endif
 #endif
 
 // For the actual polling thread.
@@ -530,6 +534,20 @@ void WaylandThread::_wl_registry_on_global(void *data, struct wl_registry *wl_re
 		return;
 	}
 
+	if (strcmp(interface, wl_shell_interface.name) == 0) {
+		registry->wl_shell = (struct wl_shell*)wl_registry_bind(wl_registry, name, &wl_shell_interface, 1);
+		registry->wl_shell_name = name;
+		return;
+	}
+
+	if (strcmp(interface, qt_surface_extension_interface.name) == 0)
+	{	//TODO" qtwayland compability
+		registry->qt_surface_extension = (struct qt_surface_extension*)wl_registry_bind(wl_registry, name,
+		                           &qt_surface_extension_interface, 1);
+		registry->qt_surface_extension_name = name;
+		return;
+	}
+
 	if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		registry->xdg_wm_base = (struct xdg_wm_base *)wl_registry_bind(wl_registry, name, &xdg_wm_base_interface, CLAMP((int)version, 1, 6));
 		registry->xdg_wm_base_name = name;
@@ -722,6 +740,28 @@ void WaylandThread::_wl_registry_on_global_remove(void *data, struct wl_registry
 		}
 
 		registry->xdg_wm_base_name = 0;
+
+		return;
+	}
+
+	if (name == registry->wl_shell_name) {
+		if (registry->wl_shell) {
+			wl_shell_destroy(registry->wl_shell);
+			registry->wl_shell = nullptr;
+		}
+
+		registry->wl_shell_name = 0;
+
+		return;
+	}
+
+	if (name == registry->qt_surface_extension_name) {
+		if (registry->qt_surface_extension) {
+			qt_surface_extension_destroy(registry->qt_surface_extension);
+			registry->qt_surface_extension = nullptr;
+		}
+
+		registry->qt_surface_extension_name = 0;
 
 		return;
 	}
@@ -1163,6 +1203,47 @@ void WaylandThread::_wl_output_on_name(void *data, struct wl_output *wl_output, 
 }
 
 void WaylandThread::_wl_output_on_description(void *data, struct wl_output *wl_output, const char *description) {
+}
+
+void WaylandThread::_wl_shell_surface_on_ping(void *data, struct wl_shell_surface *wl_shell_surface, uint32_t serial) {
+	// DEBUG_LOG_WAYLAND_THREAD(vformat("_wl_shell_surface_on_ping: send pong"));
+	wl_shell_surface_pong(wl_shell_surface, serial);
+}
+
+void WaylandThread::_wl_shell_surface_on_configure(void *data, struct wl_shell_surface *wl_shell_surface, uint32_t edges, int32_t width, int32_t height) {
+	DEBUG_LOG_WAYLAND_THREAD(vformat("_wl_shell_surface_on_configure"));
+	WindowState *ws = (WindowState *)data;
+	ERR_FAIL_NULL(ws);
+	ws->rect.size.width = width;
+	ws->rect.size.height = height;
+	DEBUG_LOG_WAYLAND_THREAD(vformat("wl_shell surface on configure width %d height %d", ws->rect.size.width, ws->rect.size.height));
+}
+
+void WaylandThread::_wl_shell_surface_on_popup_done(void *data, struct wl_shell_surface *wl_shell_surface) {
+	DEBUG_LOG_WAYLAND_THREAD("_wl_shell_surface_on_popup_done");
+}
+
+void WaylandThread::_qt_extended_surface_onscreen_visibility(void *data, 
+			struct qt_extended_surface *qt_extended_surface, 
+			int32_t visible) {
+	DEBUG_LOG_WAYLAND_THREAD(vformat("_qt_extended_surface_onscreen_visibility: visible = %s", visible == 1 ? "true" : "false"));
+}
+
+void WaylandThread::_qt_extended_surface_set_generic_property(void *data,
+		struct qt_extended_surface *qt_extended_surface,
+		const char *name,
+		struct wl_array *value) {
+	DEBUG_LOG_WAYLAND_THREAD(vformat("_qt_extended_surface_set_generic_property handler: %s", name));
+}
+
+void WaylandThread::_qt_extended_surface_close(void *data, struct qt_extended_surface *qt_extended_surface) {
+	WindowState *ws = (WindowState *)data;
+	ERR_FAIL_NULL(ws);
+
+	Ref<WindowEventMessage> msg;
+	msg.instantiate();
+	msg->event = DisplayServer::WINDOW_EVENT_CLOSE_REQUEST;
+	ws->wayland_thread->push_message(msg);
 }
 
 void WaylandThread::_xdg_wm_base_on_ping(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
@@ -3508,6 +3589,22 @@ void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_wid
 	wl_proxy_tag_godot((struct wl_proxy *)ws.wl_surface);
 	wl_surface_add_listener(ws.wl_surface, &wl_surface_listener, &ws);
 
+	if (!registry.xdg_wm_base) {
+		if (registry.wl_shell) {
+			WARN_PRINT(vformat("Fallback to wl_shell_surface: add listener."));
+			// fallback to wl_shell
+			ws.wl_shell_surface = wl_shell_get_shell_surface(registry.wl_shell, ws.wl_surface);
+			wl_shell_surface_add_listener(ws.wl_shell_surface, &wl_shell_surface_listener, &ws);
+		}
+
+		if (registry.qt_surface_extension) {
+			ws.qt_extended_surface = qt_surface_extension_get_extended_surface(registry.qt_surface_extension, ws.wl_surface);
+			qt_extended_surface_add_listener(ws.qt_extended_surface, &qt_extended_surface_listener, &ws);
+		} else {
+			WARN_PRINT("Cant add qt_surface_extension listener.");
+		}
+	}
+
 	if (registry.wp_viewporter) {
 		ws.wp_viewport = wp_viewporter_get_viewport(registry.wp_viewporter, ws.wl_surface);
 
@@ -3528,7 +3625,7 @@ void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_wid
 	}
 #endif
 
-	if (!decorated) {
+	if (!decorated && registry.xdg_wm_base) {
 		// libdecor has failed loading or is disabled, we shall handle xdg_toplevel
 		// creation and decoration ourselves (and by decorating for now I just mean
 		// asking for SSDs and hoping for the best).
@@ -4103,7 +4200,7 @@ Error WaylandThread::init() {
 
 	ERR_FAIL_NULL_V_MSG(registry.wl_shm, ERR_UNAVAILABLE, "Can't obtain the Wayland shared memory global.");
 	ERR_FAIL_NULL_V_MSG(registry.wl_compositor, ERR_UNAVAILABLE, "Can't obtain the Wayland compositor global.");
-	ERR_FAIL_NULL_V_MSG(registry.xdg_wm_base, ERR_UNAVAILABLE, "Can't obtain the Wayland XDG shell global.");
+	ERR_FAIL_NULL_V_MSG(registry.xdg_wm_base || registry.wl_shell, ERR_UNAVAILABLE, "Can't obtain the Wayland XDG or WL shell global.");
 
 	if (!registry.xdg_decoration_manager) {
 #ifdef LIBDECOR_ENABLED
@@ -4659,6 +4756,10 @@ void WaylandThread::destroy() {
 
 	if (main_window.xdg_surface) {
 		xdg_surface_destroy(main_window.xdg_surface);
+	}
+
+	if (main_window.wl_shell_surface) {
+		wl_shell_surface_destroy(main_window.wl_shell_surface);
 	}
 
 	if (main_window.wl_surface) {

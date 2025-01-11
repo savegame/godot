@@ -154,6 +154,13 @@ env.NoCache(
     ),
 )
 
+if env["auroraos"] :
+    env.WAYLAND_API_HEADER(
+        target="protocol/surface-extension.gen.h", source="#thirdparty/wayland-protocols/stable/surface-extension/surface-extension.xml"
+    )
+    env.WAYLAND_API_CODE(
+        target="protocol/surface-extension.gen.c", source="#thirdparty/wayland-protocols/stable/surface-extension/surface-extension.xml"
+    )
 
 source_files = [
     "protocol/wayland.gen.c",
@@ -177,6 +184,13 @@ source_files = [
     "key_mapping_xkb.cpp",
     "detect_prime_egl.cpp",
 ]
+
+if env["auroraos"]:
+    source_files.append(
+        [
+            "protocol/surface-extension.gen.c"
+        ]
+    )
 
 if env["use_sowrap"]:
     source_files.append(
