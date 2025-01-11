@@ -45,7 +45,7 @@
 #endif // METAL_ENABLED
 
 #if defined(GLES3_ENABLED) && !defined(MACOS_ENABLED)
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 #define XR_USE_GRAPHICS_API_OPENGL_ES
 #include <EGL/egl.h>
 #include <EGL/eglext.h>

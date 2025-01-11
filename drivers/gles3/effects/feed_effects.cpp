@@ -32,7 +32,7 @@
 
 #include "feed_effects.h"
 
-#ifdef ANDROID_ENABLED
+#if defined(ANDROID_ENABLED) || defined(AURORAOS_ENABLED)
 #include <GLES3/gl3ext.h>
 #endif
 

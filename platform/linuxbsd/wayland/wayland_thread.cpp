@@ -329,6 +329,7 @@ bool WaylandThread::_load_cursor_theme(int p_cursor_size) {
 		cursor_theme_name = "default";
 	}
 
+#if !defined(AURORAOS_ENABLED)
 	print_verbose(vformat("Loading cursor theme \"%s\" size %d.", cursor_theme_name, p_cursor_size));
 
 	wl_cursor_theme = wl_cursor_theme_load(cursor_theme_name.utf8().get_data(), p_cursor_size, registry.wl_shm);
@@ -390,7 +391,14 @@ bool WaylandThread::_load_cursor_theme(int p_cursor_size) {
 		}
 	}
 
+	return false;
+#else
+	for (int i = 0; i < DisplayServer::CURSOR_MAX; i++) {
+		wl_cursors[i] = nullptr;
+	}
+
 	return true;
+#endif
 }
 
 void WaylandThread::_update_scale(int p_scale) {
@@ -3440,6 +3448,10 @@ void WaylandThread::seat_state_confine_pointer(SeatState *p_ss) {
 
 void WaylandThread::seat_state_update_cursor(SeatState *p_ss) {
 	ERR_FAIL_NULL(p_ss);
+#if defined(AURORAOS_ENABLED)
+	WARN_PRINT_ONCE("Disable set cursor on AuroraOS lower than 5.2");
+	return;
+#endif
 
 	WaylandThread *thread = p_ss->wayland_thread;
 	ERR_FAIL_NULL(p_ss->wayland_thread);
@@ -4251,7 +4263,11 @@ Error WaylandThread::init() {
 	bool cursor_theme_loaded = _load_cursor_theme(unscaled_cursor_size * cursor_scale);
 
 	if (!cursor_theme_loaded) {
+#if !defined(AURORAOS_ENABLED)
 		return ERR_CANT_CREATE;
+#else
+		WARN_PRINT("Fail to load cursor theme. Its OK on AuroraOS for now.");
+#endif
 	}
 
 	// Update the cursor.
