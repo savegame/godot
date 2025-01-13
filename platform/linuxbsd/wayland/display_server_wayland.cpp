@@ -172,6 +172,13 @@ void DisplayServerWayland::_show_window() {
 #ifdef GLES3_ENABLED
 		if (egl_manager) {
 			struct wl_surface *wl_surface = wayland_thread.window_get_wl_surface(wd.id);
+#if defined(AURORAOS_ENABLED)
+			WaylandThread::WindowState *ws = wayland_thread.wl_surface_get_window_state(wl_surface);
+			if (ws) {
+				wd.rect.set_size(ws->rect.size);
+				DEBUG_LOG_WAYLAND(vformat("Set window size to screen size: %dx%d", wd.rect.size.width, wd.rect.size.height));
+			}
+#endif
 			wd.wl_egl_window = wl_egl_window_create(wl_surface, wd.rect.size.width, wd.rect.size.height);
 
 			Error err = egl_manager->window_create(MAIN_WINDOW_ID, wayland_thread.get_wl_display(), wd.wl_egl_window, wd.rect.size.width, wd.rect.size.height);
