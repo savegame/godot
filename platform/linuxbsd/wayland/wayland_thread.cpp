@@ -1182,6 +1182,12 @@ void WaylandThread::_wl_output_on_mode(void *data, struct wl_output *wl_output, 
 	if (wl_output_get_version(wl_output) == 1) {
 		ss->data = ss->pending_data;
 	}
+
+#ifdef AURORAOS_ENABLED
+	DEBUG_LOG_WAYLAND_THREAD(vformat("AuroraOS display size is %dx%d", width, height));;
+	ss->wayland_thread->main_window.rect.size.width = width;
+	ss->wayland_thread->main_window.rect.size.height = height;
+#endif
 }
 
 // NOTE: The following `wl_output` events are only for version 2 onwards, so we
@@ -3594,8 +3600,14 @@ void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_wid
 	ws.registry = &registry;
 	ws.wayland_thread = this;
 
+#if !defined(AURORAOS_ENABLED)
 	ws.rect.size.width = p_width;
 	ws.rect.size.height = p_height;
+#else
+// 	ws.rect.size.width = registry.pen;
+// 	ws.rect.size.height = p_height;
+	DEBUG_LOG_WAYLAND_THREAD(vformat("Set window size from pending data: %dx%d", ws.rect.size.width, ws.rect.size.height));
+#endif
 
 	ws.wl_surface = wl_compositor_create_surface(registry.wl_compositor);
 	wl_proxy_tag_godot((struct wl_proxy *)ws.wl_surface);
