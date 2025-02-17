@@ -1300,7 +1300,7 @@ public:
 			while (e) {
 				String entry = e->get();
 				print_verbose(entry);
-				RegEx regex(".*(AuroraOS|AuroraOS)-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)(-base)?-(armv7hl|i486|aarch64).*");
+				RegEx regex(".*(AuroraOS|AuroraOS)-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)(-base|-MB2)?-(armv7hl|i486|aarch64).*");
 				Array matches = regex.search_all(entry);
 				// print_verbose( String("Matches size: ") + Variant(matches.size()) );
 				for (int mi = 0; mi < matches.size(); mi++) {
