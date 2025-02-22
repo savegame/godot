@@ -59,15 +59,15 @@ def copy_file(src_dir, dst_dir, src_name, dst_name=""):
 
 
 def is_desktop(platform):
-    return platform in ["windows", "osx", "x11", "server", "uwp", "haiku"]
+    return platform in ["windows", "osx", "x11", "server", "uwp", "haiku", "auroraos"]
 
 
 def is_unix_like(platform):
-    return platform in ["osx", "x11", "server", "android", "haiku", "iphone"]
+    return platform in ["osx", "x11", "server", "android", "haiku", "iphone", "auroraos"]
 
 
 def module_supports_tools_on(platform):
-    return platform not in ["android", "javascript", "iphone"]
+    return platform not in ["android", "javascript", "iphone", "auroraos"]
 
 
 def find_wasm_src_dir(mono_root):
@@ -83,6 +83,7 @@ def find_wasm_src_dir(mono_root):
 
 def configure(env, env_mono):
     bits = env["bits"]
+    is_auroraos = env["platform"] == "auroraos"
     is_android = env["platform"] == "android"
     is_javascript = env["platform"] == "javascript"
     is_ios = env["platform"] == "iphone"
@@ -291,7 +292,7 @@ def configure(env, env_mono):
                             copy_mono_lib("libmono-icall-table")
                             copy_mono_lib("libmono-ilgen")
                 else:
-                    assert is_desktop(env["platform"]) or is_android or is_javascript
+                    assert is_desktop(env["platform"]) or is_android or is_javascript or is_auroraos
                     env.Append(LINKFLAGS=["-Wl,-whole-archive", mono_lib_file, "-Wl,-no-whole-archive"])
 
                 if is_javascript:
@@ -568,7 +569,22 @@ def copy_mono_shared_libs(env, mono_root, target_mono_root_dir):
                     "libMonoSupportW",
                 ]
             ]
-
+        #Эти изменения необходимо проверить
+        elif platform == "auroraos":
+            lib_file_names = [
+                lib_name + ".so"
+                for lib_name in [
+                    "libmonosgen-2.0",
+                    "libmono-btls-shared",
+                    "libmono-ee-interp",
+                    "libmono-native",
+                    "libMonoPosixHelper",
+                    "libmono-profiler-aot",
+                    "libmono-profiler-coverage",
+                    "libmono-profiler-log",
+                    "libMonoSupportW",
+                ]
+            ]
         for lib_file_name in lib_file_names:
             copy_if_exists(os.path.join(src_mono_lib_dir, lib_file_name), target_mono_lib_dir)
 
