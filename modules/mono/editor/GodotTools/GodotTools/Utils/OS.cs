@@ -29,6 +29,7 @@ namespace GodotTools.Utils
             public const string Android = "Android";
             public const string iOS = "iOS";
             public const string HTML5 = "HTML5";
+            public const string AuroraOS = "AuroraOS";
         }
 
         public static class Platforms
@@ -42,6 +43,7 @@ namespace GodotTools.Utils
             public const string Android = "android";
             public const string iOS = "iphone";
             public const string HTML5 = "javascript";
+            public const string AuroraOS = "auroraos";
         }
 
         public static readonly Dictionary<string, string> PlatformNameMap = new Dictionary<string, string>
@@ -54,7 +56,8 @@ namespace GodotTools.Utils
             [Names.Haiku] = Platforms.Haiku,
             [Names.Android] = Platforms.Android,
             [Names.iOS] = Platforms.iOS,
-            [Names.HTML5] = Platforms.HTML5
+            [Names.HTML5] = Platforms.HTML5,
+            [Names.AuroraOS] = Platforms.AuroraOS
         };
 
         private static bool IsOS(string name)
@@ -77,6 +80,7 @@ namespace GodotTools.Utils
         private static readonly Lazy<bool> _isiOS = new Lazy<bool>(() => IsOS(Names.iOS));
         private static readonly Lazy<bool> _isHTML5 = new Lazy<bool>(() => IsOS(Names.HTML5));
         private static readonly Lazy<bool> _isUnixLike = new Lazy<bool>(() => IsAnyOS(UnixLikePlatforms));
+        private static readonly Lazy<bool> _isAuroraOS = new Lazy<bool>(() => IsOS(Names.AuroraOS));
 
         public static bool IsWindows => _isWindows.Value || IsUWP;
         public static bool IsOSX => _isOSX.Value;
@@ -87,8 +91,9 @@ namespace GodotTools.Utils
         public static bool IsAndroid => _isAndroid.Value;
         public static bool IsiOS => _isiOS.Value;
         public static bool IsHTML5 => _isHTML5.Value;
+        public static bool IsAuroraOS => _isAuroraOS.Value;
 
-        private static readonly string[] UnixLikePlatforms = {Names.OSX, Names.X11, Names.Server, Names.Haiku, Names.Android, Names.iOS};
+        private static readonly string[] UnixLikePlatforms = {Names.OSX, Names.X11, Names.Server, Names.Haiku, Names.Android, Names.iOS, Names.AuroraOS};
 
         public static bool IsUnixLike => _isUnixLike.Value;
 
