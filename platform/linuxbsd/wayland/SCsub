@@ -152,15 +152,15 @@ env.NoCache(
         "protocol/xdg_system_bell.gen.c",
         "#thirdparty/wayland-protocols/staging/xdg-system-bell/xdg-system-bell-v1.xml",
     ),
-)
-
-if env["auroraos"] :
     env.WAYLAND_API_HEADER(
-        target="protocol/surface-extension.gen.h", source="#thirdparty/wayland-protocols/stable/surface-extension/surface-extension.xml"
-    )
+        "protocol/surface-extension.gen.h", 
+        "#thirdparty/wayland-protocols/stable/surface-extension/surface-extension.xml"
+    ),
     env.WAYLAND_API_CODE(
-        target="protocol/surface-extension.gen.c", source="#thirdparty/wayland-protocols/stable/surface-extension/surface-extension.xml"
+        "protocol/surface-extension.gen.c", 
+        "#thirdparty/wayland-protocols/stable/surface-extension/surface-extension.xml"
     )
+)
 
 source_files = [
     "protocol/wayland.gen.c",
@@ -179,18 +179,12 @@ source_files = [
     "protocol/idle_inhibit.gen.c",
     "protocol/tablet.gen.c",
     "protocol/text_input.gen.c",
+    "protocol/surface-extension.gen.c",
     "display_server_wayland.cpp",
     "wayland_thread.cpp",
     "key_mapping_xkb.cpp",
     "detect_prime_egl.cpp",
 ]
-
-if env["auroraos"]:
-    source_files.append(
-        [
-            "protocol/surface-extension.gen.c"
-        ]
-    )
 
 if env["use_sowrap"]:
     source_files.append(

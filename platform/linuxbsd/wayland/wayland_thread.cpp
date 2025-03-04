@@ -329,7 +329,14 @@ bool WaylandThread::_load_cursor_theme(int p_cursor_size) {
 		cursor_theme_name = "default";
 	}
 
+
 #if !defined(AURORAOS_ENABLED)
+	for (int i = 0; i < DisplayServer::CURSOR_MAX; i++) {
+		wl_cursors[i] = nullptr;
+	}
+
+	return true;
+
 	print_verbose(vformat("Loading cursor theme \"%s\" size %d.", cursor_theme_name, p_cursor_size));
 
 	wl_cursor_theme = wl_cursor_theme_load(cursor_theme_name.utf8().get_data(), p_cursor_size, registry.wl_shm);
@@ -428,6 +435,17 @@ void WaylandThread::_update_scale(int p_scale) {
 			seat_state_update_cursor(ss);
 		}
 	}
+}
+
+void WaylandThread::_wl_display_on_error(void *data, struct wl_display *wl_display, void *object_id, uint32_t code, const char *message) {
+	RegistryState *registry = (RegistryState *)data;
+	ERR_FAIL_NULL(registry);
+
+	WARN_PRINT(vformat("wl_display error [code: %i, object_id: %l]:.%s", (uint64_t)object_id, code, message));
+}
+
+void WaylandThread::_wl_display_on_delete_id(void *data, struct wl_display *wl_display, uint32_t id) {
+	DEBUG_LOG_WAYLAND_THREAD(vformat("delete_id: %i", id));
 }
 
 void WaylandThread::_wl_registry_on_global(void *data, struct wl_registry *wl_registry, uint32_t name, const char *interface, uint32_t version) {
@@ -1161,16 +1179,40 @@ void WaylandThread::_wl_output_on_geometry(void *data, struct wl_output *wl_outp
 	ss->pending_data.make.parse_utf8(make);
 	ss->pending_data.model.parse_utf8(model);
 
+	switch(transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		ss->pending_data.orientation = DisplayServer::SCREEN_PORTRAIT;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		ss->pending_data.orientation = DisplayServer::SCREEN_REVERSE_LANDSCAPE;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		ss->pending_data.orientation = DisplayServer::SCREEN_REVERSE_PORTRAIT;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		ss->pending_data.orientation = DisplayServer::SCREEN_LANDSCAPE;
+		break;
+	}
+
 	// `wl_output::done` is a version 2 addition. We'll directly update the data
 	// for compatibility.
 	if (wl_output_get_version(wl_output) == 1) {
 		ss->data = ss->pending_data;
+		print_verbose("Send message from wl_output_on_geometry");
+		Ref<OrientationMessage> orientation_msg;
+		orientation_msg.instantiate();
+		orientation_msg->orientation = ss->data.orientation;
+		orientation_msg->real_size = ss->data.real_size;
+		ss->wayland_thread->push_message(orientation_msg);
 	}
 }
 
 void WaylandThread::_wl_output_on_mode(void *data, struct wl_output *wl_output, uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
 	ScreenState *ss = (ScreenState *)data;
 	ERR_FAIL_NULL(ss);
+
+	ss->pending_data.real_size.width = width;
+	ss->pending_data.real_size.height = height;
 
 	ss->pending_data.size.width = width;
 	ss->pending_data.size.height = height;
@@ -1181,6 +1223,12 @@ void WaylandThread::_wl_output_on_mode(void *data, struct wl_output *wl_output, 
 	// for compatibility.
 	if (wl_output_get_version(wl_output) == 1) {
 		ss->data = ss->pending_data;
+		print_verbose("Send message from wl_output_on_mode");
+		Ref<OrientationMessage> orientation_msg;
+		orientation_msg.instantiate();
+		orientation_msg->orientation = ss->data.orientation;
+		orientation_msg->real_size = ss->data.real_size;
+		ss->wayland_thread->push_message(orientation_msg);
 	}
 
 #ifdef AURORAOS_ENABLED
@@ -1200,6 +1248,13 @@ void WaylandThread::_wl_output_on_done(void *data, struct wl_output *wl_output) 
 	ss->data = ss->pending_data;
 
 	ss->wayland_thread->_update_scale(ss->data.scale);
+
+	print_verbose("Send message from wl_output_on_done");
+	Ref<OrientationMessage> orientation_msg;
+	orientation_msg.instantiate();
+	orientation_msg->orientation = ss->data.orientation;
+	orientation_msg->real_size = ss->data.real_size;
+	ss->wayland_thread->push_message(orientation_msg);
 
 	DEBUG_LOG_WAYLAND_THREAD(vformat("Output %x done.", (size_t)wl_output));
 }
@@ -1228,8 +1283,11 @@ void WaylandThread::_wl_shell_surface_on_configure(void *data, struct wl_shell_s
 	DEBUG_LOG_WAYLAND_THREAD(vformat("_wl_shell_surface_on_configure"));
 	WindowState *ws = (WindowState *)data;
 	ERR_FAIL_NULL(ws);
+
 	ws->rect.size.width = width;
 	ws->rect.size.height = height;
+
+	window_state_update_size(ws, ws->rect.size.width, ws->rect.size.height);
 	DEBUG_LOG_WAYLAND_THREAD(vformat("wl_shell surface on configure width %d height %d", ws->rect.size.width, ws->rect.size.height));
 }
 
@@ -1463,6 +1521,7 @@ void WaylandThread::_wl_seat_on_capabilities(void *data, struct wl_seat *wl_seat
 			ss->touch_data_buffer.reserve(10);
 			ss->touch_data.reserve(10);
 			wl_touch_add_listener(ss->wl_touch, &wl_touch_listener, ss);
+			ss->wayland_thread->touch_avaliable = true;
 		}
 	} else {
 		if (ss->wl_touch) {
@@ -1470,6 +1529,7 @@ void WaylandThread::_wl_seat_on_capabilities(void *data, struct wl_seat *wl_seat
 			ss->wl_touch = nullptr;
 			ss->touch_data_buffer.clear();
 			ss->touch_data.clear();
+			ss->wayland_thread->touch_avaliable = false;
 		}
 	}
 
@@ -1572,8 +1632,6 @@ void WaylandThread::_wl_touch_listener_on_down(void *data, struct wl_touch *wl_t
 		return;
 	}
 
-	DEBUG_LOG_WAYLAND_THREAD(vformat("Handle _wl_touch_listener_on_down. id %d", id));
-
 	SeatState *ss = (SeatState *)data;
 	ERR_FAIL_NULL(ss);
 
@@ -1607,7 +1665,6 @@ void WaylandThread::_wl_touch_listener_on_down(void *data, struct wl_touch *wl_t
 }
 
 void WaylandThread::_wl_touch_listener_on_up(void *data, struct wl_touch *wl_touch, uint32_t serial, uint32_t time, int32_t id) {
-	DEBUG_LOG_WAYLAND_THREAD(vformat("Handle _wl_touch_listener_on_up: id %d", id));
 
 	SeatState *ss = (SeatState *)data;
 	ERR_FAIL_NULL(ss);
@@ -1618,6 +1675,7 @@ void WaylandThread::_wl_touch_listener_on_up(void *data, struct wl_touch *wl_tou
 			touch.state = TouchState::UP;
 			touch.pressed = false;
 			touch.motion_time = touch.down_time + 1;
+			ss->touch_data_buffer[i].id = -1;
 			return;
 		}
 	}
@@ -1719,7 +1777,7 @@ void WaylandThread::_wl_touch_listener_on_frame(void *data, struct wl_touch *wl_
 }
 
 void WaylandThread::_wl_touch_listener_on_cancel(void *data, struct wl_touch *wl_touch) {
-	DEBUG_LOG_WAYLAND_THREAD("Handle _wl_touch_listener_on_cancel")
+	// DEBUG_LOG_WAYLAND_THREAD("Handle _wl_touch_listener_on_cancel")
 }
 
 void WaylandThread::_wl_touch_listener_on_shape(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t major, wl_fixed_t minor) {
@@ -3329,7 +3387,7 @@ void WaylandThread::window_state_update_size(WindowState *p_ws, int p_width, int
 
 		if (p_ws->xdg_surface) {
 			xdg_surface_set_window_geometry(p_ws->xdg_surface, 0, 0, p_width, p_height);
-		}
+		} 
 	}
 
 #ifdef LIBDECOR_ENABLED
@@ -4108,6 +4166,10 @@ int WaylandThread::get_screen_count() const {
 	return registry.wl_outputs.size();
 }
 
+bool WaylandThread::get_touch_avaliable() const {
+	return touch_avaliable;
+}
+
 DisplayServer::WindowID WaylandThread::pointer_get_pointed_window_id() const {
 	SeatState *ss = wl_seat_get_seat_state(wl_seat_current);
 
@@ -4207,6 +4269,8 @@ Error WaylandThread::init() {
 	wl_display = wl_display_connect(nullptr);
 	ERR_FAIL_NULL_V_MSG(wl_display, ERR_CANT_CREATE, "Can't connect to a Wayland display.");
 
+	wl_display_add_listener(wl_display, &wl_display_listener, &registry);
+
 	thread_data.wl_display = wl_display;
 
 	events_thread.start(_poll_events_thread, &thread_data);
@@ -4224,7 +4288,7 @@ Error WaylandThread::init() {
 
 	ERR_FAIL_NULL_V_MSG(registry.wl_shm, ERR_UNAVAILABLE, "Can't obtain the Wayland shared memory global.");
 	ERR_FAIL_NULL_V_MSG(registry.wl_compositor, ERR_UNAVAILABLE, "Can't obtain the Wayland compositor global.");
-	ERR_FAIL_NULL_V_MSG(registry.xdg_wm_base || registry.wl_shell, ERR_UNAVAILABLE, "Can't obtain the Wayland XDG or WL shell global.");
+	ERR_FAIL_COND_V_MSG(!registry.xdg_wm_base && !registry.wl_shell, ERR_UNAVAILABLE, "Can't obtain the Wayland XDG or WL shell global.");
 
 	if (!registry.xdg_decoration_manager) {
 #ifdef LIBDECOR_ENABLED

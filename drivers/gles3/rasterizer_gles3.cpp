@@ -38,6 +38,7 @@
 #include "core/io/image.h"
 #include "core/os/os.h"
 #include "storage/texture_storage.h"
+#include <string>
 
 #define _EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB 0x8242
 #define _EXT_DEBUG_NEXT_LOGGED_MESSAGE_LENGTH_ARB 0x8243
@@ -382,6 +383,277 @@ RasterizerGLES3::RasterizerGLES3() {
 RasterizerGLES3::~RasterizerGLES3() {
 }
 
+#ifdef AURORAOS_ENABLED
+#define LOG(...) fprintf(stderr, "INFO: " __VA_ARGS__)
+
+static struct aurora_fbo {
+	GLuint vbo = 0;
+	GLuint program = 0;
+	GLfloat vertices[9] = {
+		0.0f, 0.5f, 0.0f,
+		-0.5f, -0.5f, 0.0f,
+		0.5f, -0.5f, 0.0f
+	};
+} s_aurora_fbo;
+
+static int loadShader(int shaderType, const char * source)
+{
+	int shader = glCreateShader(shaderType);
+
+	if(shader != 0)
+	{
+		glShaderSource(shader, 1, &source, NULL);
+		glCompileShader(shader);
+
+		GLint  length;
+
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+
+		if(length)
+		{
+			char* buffer  =  new char [ length ];
+			glGetShaderInfoLog(shader, length, NULL, buffer);
+			LOG("shader = %s\n", buffer);
+			delete [] buffer;
+
+			GLint success;
+			glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+			if(success != GL_TRUE)
+			{
+				ERR_PRINT("ERROR compiling shader\n");
+			}
+		}
+	}
+	else
+	{
+		ERR_PRINT("FAILED to create shader\n");
+	}
+
+	return shader;
+}
+
+static int createProgram(const char * vertexSource, const char *  fragmentSource)
+{
+	int vertexShader = loadShader(GL_VERTEX_SHADER, vertexSource);
+	int pixelShader = loadShader(GL_FRAGMENT_SHADER, fragmentSource);
+
+	int program = glCreateProgram();
+
+	if(program != 0)
+	{
+		glAttachShader(program, vertexShader);
+		// checkGlError("glAttachShader");
+		glAttachShader(program, pixelShader);
+		// checkGlError("glAttachShader");
+		glLinkProgram(program);
+		int linkStatus[1];
+		glGetProgramiv(program, GL_LINK_STATUS, linkStatus);
+
+		if(linkStatus[0] != GL_TRUE)
+		{
+			char log[256];
+			GLsizei size;
+			glGetProgramInfoLog(program, 256, &size, log);
+			ERR_PRINT(vformat("Could not link program: %s", log));
+			glDeleteProgram(program);
+			program = 0;
+		}
+
+	}
+	else
+	{
+		ERR_PRINT("FAILED to create program");
+	}
+
+	LOG("Program linked OK %d\n", program);
+	return program;
+}
+
+#define GL_CHECK_ERROR() \
+	while (true) { \
+		GLenum error = glGetError(); \
+		if (error != GL_NO_ERROR) { \
+			if (error == GL_INVALID_ENUM) \
+				ERR_PRINT("GL_INVALID_ENUM"); \
+			else if (error == GL_INVALID_OPERATION) \
+				ERR_PRINT("GL_INVALID_OPERATION"); \
+			else  \
+				ERR_PRINT(vformat("glError = %d", error)); \
+		}\
+		break;\
+	}
+
+static void create_vbo(GLuint &vbo, GLuint &vao, const GLuint &shader, const GLint &a_pos, const GLint &a_uv) {
+	glGenBuffers(1, &vbo); GL_CHECK_ERROR()
+	glBindBuffer(GL_ARRAY_BUFFER, vbo); GL_CHECK_ERROR()
+	LOG("Vertex buffer is: %d\n", vbo);
+
+	GLfloat vertices[] = {
+		-1.0f, -1.0f,   0.0, 1.0,
+		 1.0f, -1.0f,   1.0, 1.0,
+		-1.0f,  1.0f,   0.0, 0.0,
+		-1.0f,  1.0f,   0.0, 0.0,
+		 1.0f, -1.0f,   1.0, 1.0,
+		 1.0f,  1.0f,   1.0, 0.0,
+	};
+
+	// GLfloat vertices[] = {
+	// 	-1.0f, -1.0f,
+	// 	3.0f, -1.0f,
+	// 	-1.0f, 3.0f,
+	// };
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW); GL_CHECK_ERROR()
+	// LOG("Size of vertices is %d\n", sizeof(vertices));
+
+	glGenVertexArrays(1, &vao); GL_CHECK_ERROR()
+	glBindVertexArray(vao); GL_CHECK_ERROR()
+
+	glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, 0); GL_CHECK_ERROR()
+	glEnableVertexAttribArray(a_pos); GL_CHECK_ERROR()
+	glVertexAttribPointer(a_uv, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, (void*)(sizeof(GLfloat) * 2)); GL_CHECK_ERROR()
+	glEnableVertexAttribArray(a_uv); GL_CHECK_ERROR()
+	glBindVertexArray(GL_NONE); GL_CHECK_ERROR()
+	glBindBuffer(GL_ARRAY_BUFFER, GL_NONE); GL_CHECK_ERROR()
+}
+
+static void draw_vbo(GLES3::RenderTarget *rt, const bool &gles_over_gl, const Size2i &native_size) {
+	static bool initialized = false;
+	static GLint m_positionLoc = -1;
+	static GLint m_uvLoc = -1;
+	static GLint m_colorLoc = -1;
+	static GLint m_rotationLoc = -1;
+	static GLuint r_program;
+
+	static GLuint m_vbo = 0;
+	static GLuint m_vao = 0;
+
+	if (!initialized) {
+		LOG("System FBO is: %d\n", GLES3::TextureStorage::system_fbo);
+		initialized = true;
+
+		const GLchar *vertSource = ""
+			"attribute vec2 a_position;                     \n"
+			"attribute vec2 a_uv;                           \n"
+			"uniform mat2 u_rotation;                       \n"
+			"varying vec2 v_uv;                             \n"
+			"void main()                                    \n"
+			"{                                              \n"
+			"   v_uv = a_uv;                                \n"
+			"   gl_Position = vec4(a_position * u_rotation, 0.0, 1.0);   \n"
+			"}                                              \n"
+			;
+		
+		// GLchar *fragSource = nullptr;
+		std::string fragSource;
+		if (gles_over_gl) {
+			fragSource = 
+				"uniform sampler2D u_color;                     \n"
+				"varying vec2 v_uv;                             \n"
+				"void main()                                    \n"
+				"{                                              \n"
+				"	gl_FragColor = texture2D(u_color, vec2(v_uv.y, 1.0 - v_uv.x)); \n"
+				"}                                              \n"
+				;
+		} else {
+	// #if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC) || defined(__arm__) || defined(_M_ARM) || defined(__riscv)
+	// #endif
+			fragSource = 
+				"precision highp float;                       	\n "
+				"uniform sampler2D u_color;                     \n"
+				"varying vec2 v_uv;                             \n"
+				"void main()                                    \n"
+				"{                                              \n"
+				// "	gl_FragColor = texture2D(u_color, vec2(v_uv.y, 1.0 - v_uv.x)); \n"
+				"	gl_FragColor = texture2D(u_color, v_uv); \n"
+				"}                                              \n"
+				;
+		}
+
+		r_program = createProgram(vertSource, fragSource.c_str());
+		glUseProgram(r_program); GL_CHECK_ERROR()
+
+		m_positionLoc = glGetAttribLocation(r_program, "a_position"); GL_CHECK_ERROR()
+		m_uvLoc = glGetAttribLocation(r_program, "a_uv"); GL_CHECK_ERROR()
+		m_colorLoc = glGetUniformLocation(r_program, "u_color"); GL_CHECK_ERROR()
+		m_rotationLoc = glGetUniformLocation(r_program, "u_rotation"); GL_CHECK_ERROR()
+		glUniform1i(m_colorLoc, 0); GL_CHECK_ERROR()
+		GLfloat w = Math_PI;
+		GLfloat mat[4] = {
+			 cos(w), sin(w),
+			-sin(w), cos(w)
+		};
+		glUniformMatrix2fv(m_rotationLoc, 1, GL_FALSE, mat); GL_CHECK_ERROR()
+		LOG("a_position is: %i\n", m_positionLoc);
+		LOG("u_rotation is: %i\n", m_rotationLoc);
+		LOG("a_uv is: %i\n", m_uvLoc);
+		create_vbo(m_vbo, m_vao, r_program, m_positionLoc, m_uvLoc);
+	}
+
+	glUseProgram(r_program); GL_CHECK_ERROR()
+
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo); GL_CHECK_ERROR()
+
+	glBindVertexArray(m_vao); GL_CHECK_ERROR()
+	glEnableVertexAttribArray(m_positionLoc); GL_CHECK_ERROR()
+	glVertexAttribPointer(m_positionLoc, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, (void*)0); GL_CHECK_ERROR()
+	glEnableVertexAttribArray(m_uvLoc); GL_CHECK_ERROR()
+	glVertexAttribPointer(m_uvLoc, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, (void*)(sizeof(GLfloat) * 2)); GL_CHECK_ERROR()
+	glTexParameteri(GL_TEXTURE_2D,  GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,  GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glBindTexture(GL_TEXTURE_2D, rt->color); GL_CHECK_ERROR()
+
+	GLfloat w = 0;
+	GLfloat scale[2] = 
+	{
+		1.0,
+		1.0
+	};
+	DisplayServer::ScreenOrientation orientation = DisplayServer::get_singleton()->screen_get_orientation();
+	if (orientation >= DisplayServer::SCREEN_SENSOR_LANDSCAPE) {
+		orientation = DisplayServer::get_singleton()->screen_get_sensor_orientation();
+	}
+	switch(orientation) {
+	case DisplayServer::SCREEN_LANDSCAPE:
+		w = Math_PI * 0.5;
+		scale[0] = (GLfloat)rt->size.x / (GLfloat)native_size.y;
+		scale[1] = (GLfloat)rt->size.y / (GLfloat)native_size.x;
+		break;
+	case DisplayServer::SCREEN_REVERSE_LANDSCAPE:
+		w = Math_PI * 1.5;
+		scale[0] = (GLfloat)rt->size.x / (GLfloat)native_size.y;
+		scale[1] = (GLfloat)rt->size.y / (GLfloat)native_size.x;
+		break;
+	case DisplayServer::SCREEN_REVERSE_PORTRAIT:
+		w = Math_PI;
+	default:
+		scale[0] = (GLfloat)rt->size.x / (GLfloat)native_size.x;
+		scale[1] = (GLfloat)rt->size.y / (GLfloat)native_size.y;
+	}
+
+	if (scale[0] > scale[1]) {
+		scale[1] = scale[1] / scale[0];
+		scale[0] = 1.0;
+	} else {
+		scale[0] = scale[0] / scale[1];
+		scale[1] = 1.0;
+	}
+
+	GLfloat mat[4] = {
+		cos(w) * scale[0], sin(w) * scale[1],
+		-sin(w) * scale[0], cos(w) * scale[1]
+	};
+
+	glUniformMatrix2fv(m_rotationLoc, 1, GL_FALSE, mat); GL_CHECK_ERROR()
+
+	glDrawArrays(GL_TRIANGLES, 0, 6); GL_CHECK_ERROR()
+
+	glBindBuffer(GL_ARRAY_BUFFER, GL_NONE); GL_CHECK_ERROR()
+	glBindVertexArray(GL_NONE); GL_CHECK_ERROR()
+}
+#endif
+
 void RasterizerGLES3::_blit_render_target_to_screen(RID p_render_target, DisplayServer::WindowID p_screen, const Rect2 &p_screen_rect, uint32_t p_layer, bool p_first) {
 	GLES3::RenderTarget *rt = GLES3::TextureStorage::get_singleton()->get_render_target(p_render_target);
 
@@ -415,37 +687,56 @@ void RasterizerGLES3::_blit_render_target_to_screen(RID p_render_target, Display
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLES3::TextureStorage::system_fbo);
 
+	Vector2i screen_rect_end = p_screen_rect.get_end();
+
+#ifdef AURORAOS_ENABLED
+	Size2i native_size = DisplayServer::get_singleton()->screen_get_native_size();
+	if (native_size.x > 1 || native_size.y > 1)
+		glViewport(0, 0, native_size.x, native_size.y);
+#endif
+	// TODO AuroraOS
 	if (p_first) {
 		if (p_screen_rect.position != Vector2() || p_screen_rect.size != rt->size) {
 			// Viewport doesn't cover entire window so clear window to black before blitting.
 			// Querying the actual window size from the DisplayServer would deadlock in separate render thread mode,
 			// so let's set the biggest viewport the implementation supports, to be sure the window is fully covered.
+#ifndef AURORAOS_ENABLED
 			Size2i max_vp = GLES3::Utilities::get_singleton()->get_maximum_viewport_size();
 			glViewport(0, 0, max_vp[0], max_vp[1]);
+#endif
 			glClearColor(0.0, 0.0, 0.0, 1.0);
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
 	}
 
-	Vector2i screen_rect_end = p_screen_rect.get_end();
-
 	// Adreno (TM) 3xx devices have a bug that create wrong Landscape rotation of 180 degree
-	// Reversing both the X and Y axis is equivalent to rotating 180 degrees
+	// Reversing both the X and Y axis is eqivalent to rotating 180 degrees
 	bool flip_x = false;
 	if (flip_xy_workaround && screen_rect_end.x > screen_rect_end.y) {
 		flip_y = !flip_y;
 		flip_x = !flip_x;
 	}
 
-	glBlitFramebuffer(0, 0, rt->size.x, rt->size.y,
+	// flip 180
+	// flip_x = true; 
+	// flip_y = false;
+
+#ifndef AURORAOS_ENABLED
+	glBlitFramebuffer (0, 0, rt->size.x, rt->size.y,
 			flip_x ? screen_rect_end.x : p_screen_rect.position.x, flip_y ? screen_rect_end.y : p_screen_rect.position.y,
 			flip_x ? p_screen_rect.position.x : screen_rect_end.x, flip_y ? p_screen_rect.position.y : screen_rect_end.y,
 			GL_COLOR_BUFFER_BIT, GL_NEAREST);
+#endif
 
 	if (read_fbo != 0) {
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, GLES3::TextureStorage::system_fbo);
 		glDeleteFramebuffers(1, &read_fbo);
 	}
+
+#ifdef AURORAOS_ENABLED
+	draw_vbo(rt, gles_over_gl, native_size);
+	glViewport(0, 0, screen_rect_end.x, screen_rect_end.y);
+#endif
 }
 
 // is this p_screen useless in a multi window environment?

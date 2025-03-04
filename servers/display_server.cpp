@@ -564,6 +564,16 @@ DisplayServer::ScreenOrientation DisplayServer::screen_get_orientation(int p_scr
 	return SCREEN_LANDSCAPE;
 }
 
+#ifdef AURORAOS_ENABLED
+DisplayServer::ScreenOrientation DisplayServer::screen_get_sensor_orientation(int p_screen) const {
+	return screen_get_orientation();
+}
+
+Size2i DisplayServer::screen_get_native_size() const {
+	return {1, 1};
+}
+#endif
+
 float DisplayServer::screen_get_scale(int p_screen) const {
 	return 1.0f;
 }
