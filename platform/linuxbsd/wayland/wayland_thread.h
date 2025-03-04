@@ -106,6 +106,12 @@ public:
 		Rect2i rect;
 	};
 
+	class OrientationMessage : public Message {
+	public:
+		DisplayServer::ScreenOrientation orientation;
+		Size2i real_size;
+	};
+
 	class WindowEventMessage : public Message {
 	public:
 		DisplayServer::WindowEvent event;
@@ -216,6 +222,7 @@ public:
 	struct WindowState {
 		DisplayServer::WindowID id;
 
+		Size2i real_size;
 		Rect2i rect;
 		DisplayServer::WindowMode mode = DisplayServer::WINDOW_MODE_WINDOWED;
 		bool suspended = false;
@@ -297,10 +304,12 @@ public:
 		String model;
 
 		Size2i size;
+		Size2i real_size;
 		Size2i physical_size;
 
 		float refresh_rate = -1;
 		int scale = 1;
+		DisplayServer::ScreenOrientation orientation = DisplayServer::SCREEN_LANDSCAPE;
 	};
 
 	struct ScreenState {
@@ -588,6 +597,7 @@ private:
 	RegistryState registry;
 
 	bool initialized = false;
+	bool touch_avaliable = false;
 
 #ifdef LIBDECOR_ENABLED
 	struct libdecor *libdecor_context = nullptr;
@@ -597,6 +607,8 @@ private:
 	static void _poll_events_thread(void *p_data);
 
 	// Core Wayland event handlers.
+	static void _wl_display_on_error(void *data, struct wl_display *wl_display, void *object_id, uint32_t code, const char *message);
+	static void _wl_display_on_delete_id(void *data, struct wl_display *wl_display, uint32_t id);
 	static void _wl_registry_on_global(void *data, struct wl_registry *wl_registry, uint32_t name, const char *interface, uint32_t version);
 	static void _wl_registry_on_global_remove(void *data, struct wl_registry *wl_registry, uint32_t name);
 
@@ -753,6 +765,11 @@ private:
 	static void _xdg_activation_token_on_done(void *data, struct xdg_activation_token_v1 *xdg_activation_token, const char *token);
 
 	// Core Wayland event listeners.
+	static constexpr struct wl_display_listener wl_display_listener = {
+		.error = _wl_display_on_error,
+		.delete_id = _wl_display_on_delete_id
+	};
+
 	static constexpr struct wl_registry_listener wl_registry_listener = {
 		.global = _wl_registry_on_global,
 		.global_remove = _wl_registry_on_global_remove,
@@ -1090,6 +1107,8 @@ public:
 
 	ScreenData screen_get_data(int p_screen) const;
 	int get_screen_count() const;
+
+	bool get_touch_avaliable() const;
 
 	void pointer_set_constraint(PointerConstraint p_constraint);
 	void pointer_set_hint(const Point2i &p_hint);

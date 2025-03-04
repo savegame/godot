@@ -85,7 +85,6 @@ def configure(env: "SConsEnvironment"):
         env["wayland"] = True
         env["alsa"] = False
 
-
     ## Build type
 
     if env.dev_build:

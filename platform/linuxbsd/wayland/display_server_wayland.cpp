@@ -96,6 +96,105 @@ void DisplayServerWayland::_dispatch_input_event(const Ref<InputEvent> &p_event)
 	}
 }
 
+#ifdef AURORAOS_ENABLED
+void DisplayServerWayland::_sensor_orientation_changed(DisplayServer::ScreenOrientation _orientation, const Size2i &size) {
+	DisplayServer::ScreenOrientation new_orientation;
+	
+	device_orientation = _orientation;
+	native_size = size;
+	print_verbose(vformat("Native size: %dx%d", native_size.x, native_size.y));
+
+	if (orientation < SCREEN_SENSOR_LANDSCAPE) {
+		new_orientation = orientation;
+	} else if (orientation >= SCREEN_SENSOR_LANDSCAPE) {
+		switch(orientation) {
+		case SCREEN_SENSOR_LANDSCAPE:
+			if (_orientation == SCREEN_LANDSCAPE || _orientation == SCREEN_REVERSE_LANDSCAPE)
+				new_orientation = _orientation;
+			else if (_orientation == SCREEN_PORTRAIT) 
+				new_orientation = sensor_orientation == SCREEN_REVERSE_LANDSCAPE ? SCREEN_REVERSE_LANDSCAPE : SCREEN_LANDSCAPE;
+			else if (_orientation == SCREEN_REVERSE_PORTRAIT) 
+				new_orientation = sensor_orientation == SCREEN_LANDSCAPE ? SCREEN_LANDSCAPE : SCREEN_REVERSE_LANDSCAPE;
+			break;
+		case SCREEN_SENSOR_PORTRAIT:
+			if (_orientation == SCREEN_PORTRAIT || _orientation == SCREEN_REVERSE_PORTRAIT)
+				new_orientation = _orientation;
+			else if (_orientation == SCREEN_LANDSCAPE) 
+				new_orientation = sensor_orientation == SCREEN_REVERSE_PORTRAIT ? SCREEN_REVERSE_PORTRAIT : SCREEN_PORTRAIT;
+			else if (_orientation == SCREEN_REVERSE_LANDSCAPE) 
+				new_orientation = sensor_orientation == SCREEN_PORTRAIT ? SCREEN_PORTRAIT : SCREEN_REVERSE_PORTRAIT;
+			break;
+		default:
+			new_orientation = _orientation;
+		}
+	} else {
+		return;
+	}
+
+	if (new_orientation == sensor_orientation) {
+		return;
+	}
+	sensor_orientation = new_orientation;
+
+	WindowData &wd = main_window;
+
+	struct wl_surface *wl_surface = wayland_thread.window_get_wl_surface(wd.id);
+	int32_t buffer_transform = WL_OUTPUT_TRANSFORM_NORMAL;
+
+	switch(sensor_orientation) {
+	case SCREEN_REVERSE_LANDSCAPE:
+		buffer_transform = WL_OUTPUT_TRANSFORM_90;
+		break;
+	case SCREEN_REVERSE_PORTRAIT:
+		buffer_transform = WL_OUTPUT_TRANSFORM_180;
+		break;
+	case SCREEN_LANDSCAPE:
+		buffer_transform = WL_OUTPUT_TRANSFORM_270;
+		break;
+	}
+	wl_surface_set_buffer_transform(wl_surface, buffer_transform);
+
+	if (native_size.x == 1 && native_size.y == 1) {
+		native_size = wd.rect.size;
+		print_verbose(vformat("Use window size as native size for first start %dx%d", native_size.x, native_size.y));
+	}
+
+	Size2i new_size = size;
+	switch(sensor_orientation) {
+	case DisplayServer::SCREEN_PORTRAIT:
+		print_verbose("Message incoming sensor orientation:SCREEN_PORTRAIT");
+	case DisplayServer::SCREEN_REVERSE_PORTRAIT:
+		if (size.width < size.height) {
+			new_size = size;
+		} else {
+			new_size = {size.y, size.x};
+		}
+		print_verbose("Message incoming sensor orientation:SCREEN_REVERSE_PORTRAIT");
+		break;
+	case DisplayServer::SCREEN_LANDSCAPE:
+	case DisplayServer::SCREEN_REVERSE_LANDSCAPE:
+		if (size.width < size.height) {
+			new_size = {size.y, size.x};
+		} else {
+			new_size = size;
+		}
+		print_verbose("Message incoming sensor orientation:SCREEN_LANDSCAPE or REVERSE");
+		break;
+	}
+
+	main_window.rect.size = new_size;
+#ifdef RD_ENABLED
+	if (wd.visible && rendering_context) {
+		print_verbose(vformat("DEBUG: rendering_context->window_set_size %dx%d", wd.rect.size.width, wd.rect.size.height));
+		rendering_context->window_set_size(MAIN_WINDOW_ID, wd.rect.size.width, wd.rect.size.height);
+	}
+#endif
+	if (wd.rect_changed_callback.is_valid()) {
+		wd.rect_changed_callback.call(wd.rect);
+	}
+}
+#endif
+
 void DisplayServerWayland::_resize_window(const Size2i &p_size) {
 	WindowData &wd = main_window;
 
@@ -157,6 +256,9 @@ void DisplayServerWayland::_show_window() {
 			Error err = rendering_context->window_create(wd.id, &wpd);
 			ERR_FAIL_COND_MSG(err != OK, vformat("Can't create a %s window", rendering_driver));
 
+			// TODO: AuroraOS made window fullscreen size by default (and use safezonerect in future)
+			DEBUG_LOG_WAYLAND(vformat("Set window size: %dx%d", wd.rect.size.width, wd.rect.size.height));
+
 			rendering_context->window_set_size(wd.id, wd.rect.size.width, wd.rect.size.height);
 			rendering_context->window_set_vsync_mode(wd.id, wd.vsync_mode);
 
@@ -209,8 +311,12 @@ bool DisplayServerWayland::has_feature(Feature p_feature) const {
 		case FEATURE_MOUSE:
 		case FEATURE_MOUSE_WARP:
 		case FEATURE_CLIPBOARD:
+#ifndef AURORAOS_ENABLED
 		case FEATURE_CURSOR_SHAPE:
 		case FEATURE_CUSTOM_CURSOR_SHAPE:
+#else
+		case FEATURE_ORIENTATION:
+#endif
 		case FEATURE_WINDOW_TRANSPARENCY:
 		case FEATURE_HIDPI:
 		case FEATURE_SWAP_BUFFERS:
@@ -621,6 +727,43 @@ float DisplayServerWayland::screen_get_refresh_rate(int p_screen) const {
 
 	return wayland_thread.screen_get_data(p_screen).refresh_rate;
 }
+
+bool DisplayServerWayland::is_touchscreen_available() const {
+	// MutexLock mutex_lock(wayland_thread.mutex);
+	return wayland_thread.get_touch_avaliable();
+}
+
+void DisplayServerWayland::screen_set_orientation(DisplayServer::ScreenOrientation p_orientation, int p_screen) {
+	orientation = p_orientation;
+#ifdef AURORAOS_ENABLED
+	switch(p_orientation) {
+	case SCREEN_LANDSCAPE: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_LANDSCAPE;"); break;
+	case SCREEN_PORTRAIT: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_PORTRAIT;"); break;
+	case SCREEN_REVERSE_LANDSCAPE: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_REVERSE_LANDSCAPE;"); break;
+	case SCREEN_REVERSE_PORTRAIT: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_REVERSE_PORTRAIT;"); break;
+	case SCREEN_SENSOR_LANDSCAPE: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_SENSOR_LANDSCAPE;"); break;
+	case SCREEN_SENSOR_PORTRAIT: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_SENSOR_PORTRAIT;"); break;
+	case SCREEN_SENSOR: DEBUG_LOG_WAYLAND("Set allowed orientation to SCREEN_SENSOR;"); break;
+	}
+	_sensor_orientation_changed(device_orientation, native_size);
+#endif
+}
+
+DisplayServer::ScreenOrientation DisplayServerWayland::screen_get_orientation(int p_screen) const {
+	return orientation;
+}
+
+#ifdef AURORAOS_ENABLED
+DisplayServer::ScreenOrientation DisplayServerWayland::screen_get_sensor_orientation(int p_screen) const {
+	if (orientation < SCREEN_SENSOR_LANDSCAPE)
+		return orientation;
+	return sensor_orientation;
+}
+
+Size2i DisplayServerWayland::screen_get_native_size() const {
+	return native_size;
+}
+#endif
 
 void DisplayServerWayland::screen_set_keep_on(bool p_enable) {
 	MutexLock mutex_lock(wayland_thread.mutex);
@@ -1199,11 +1342,78 @@ void DisplayServerWayland::try_suspend() {
 	}
 }
 
+static void _transform_vector(
+	const DisplayServer::ScreenOrientation &native_orientation,
+	const DisplayServer::ScreenOrientation &orientation,
+	const Size2i &native_size,
+	Vector2 &pos,
+	Vector2 &relative) {
+	real_t tmp;
+	switch(orientation) {
+	case DisplayServer::SCREEN_PORTRAIT:
+		if (native_orientation == DisplayServer::SCREEN_LANDSCAPE) {
+			tmp = native_size.x - pos.x;
+			pos.x = pos.y;
+			pos.y = tmp;
+
+			tmp = relative.x;
+			relative.x = relative.y;
+			relative.y = tmp;
+		}
+		break;
+	case DisplayServer::SCREEN_LANDSCAPE:
+		if (native_orientation == DisplayServer::SCREEN_PORTRAIT) {
+			tmp = native_size.x - pos.x;
+			pos.x = pos.y;
+			pos.y = tmp;
+
+			tmp = -relative.x;
+			relative.x = relative.y;
+			relative.y = tmp;
+		}
+		break;
+	case DisplayServer::SCREEN_REVERSE_LANDSCAPE:
+		if (native_orientation == DisplayServer::SCREEN_PORTRAIT) {
+			tmp = pos.x;
+			pos.x = native_size.y - pos.y;
+			pos.y = tmp;
+
+			tmp = relative.x;
+			relative.x = -relative.y;
+			relative.y = tmp;
+		} else {
+			tmp = native_size.x - pos.x;
+			pos.x = native_size.y - pos.y;
+			pos.y = tmp;
+
+			relative.x = -relative.x;
+			relative.y = -relative.y;
+		}
+		break;
+	case DisplayServer::SCREEN_REVERSE_PORTRAIT:
+		if (native_orientation == DisplayServer::SCREEN_PORTRAIT) {
+			pos.x = native_size.x - pos.x;
+			pos.y = native_size.y - pos.y;
+
+			relative.x = -relative.x;
+			relative.y = -relative.y;
+		}
+		break;
+	}
+}
+
 void DisplayServerWayland::process_events() {
 	wayland_thread.mutex.lock();
 
 	while (wayland_thread.has_message()) {
 		Ref<WaylandThread::Message> msg = wayland_thread.pop_message();
+
+#ifdef AURORAOS_ENABLED
+		Ref<WaylandThread::OrientationMessage> orientation_msg = msg;
+		if (orientation_msg.is_valid()) {
+			_sensor_orientation_changed(orientation_msg->orientation, orientation_msg->real_size);
+		}
+#endif
 
 		Ref<WaylandThread::WindowRectMessage> winrect_msg = msg;
 		if (winrect_msg.is_valid()) {
@@ -1228,6 +1438,32 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::InputEventMessage> inputev_msg = msg;
 		if (inputev_msg.is_valid()) {
+#ifdef AURORAOS_ENABLED
+			Ref<InputEventScreenTouch> touch_event = inputev_msg->event;
+			if (touch_event.is_valid()) {
+				Vector2 pos = touch_event->get_position();
+				Vector2 relative {1, 1};
+				_transform_vector(native_size.x > native_size.y ? SCREEN_LANDSCAPE : SCREEN_PORTRAIT,
+					screen_get_sensor_orientation(), 
+					native_size,
+					pos,
+					relative);
+				touch_event->set_position(pos);
+			}
+
+			Ref<InputEventScreenDrag> drag_event = inputev_msg->event;
+			if (drag_event.is_valid()) {
+				Vector2 pos = drag_event->get_position();
+				Vector2 relative = drag_event->get_relative();
+				_transform_vector(native_size.x > native_size.y ? SCREEN_LANDSCAPE : SCREEN_PORTRAIT,
+					screen_get_sensor_orientation(), 
+					native_size,
+					pos,
+					relative);
+				drag_event->set_position(pos);
+				drag_event->set_relative(relative);
+			}
+#endif
 			Input::get_singleton()->parse_input_event(inputev_msg->event);
 		}
 

@@ -376,6 +376,10 @@ public:
 
 	virtual void screen_set_orientation(ScreenOrientation p_orientation, int p_screen = SCREEN_OF_MAIN_WINDOW);
 	virtual ScreenOrientation screen_get_orientation(int p_screen = SCREEN_OF_MAIN_WINDOW) const;
+#ifdef AURORAOS_ENABLED
+	virtual ScreenOrientation screen_get_sensor_orientation(int p_screen = SCREEN_OF_MAIN_WINDOW) const;
+	virtual Size2i screen_get_native_size() const;
+#endif
 
 	virtual void screen_set_keep_on(bool p_enable); //disable screensaver
 	virtual bool screen_is_kept_on() const;

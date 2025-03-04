@@ -123,6 +123,13 @@ class DisplayServerWayland : public DisplayServer {
 	WindowData main_window;
 	WaylandThread wayland_thread;
 
+	DisplayServer::ScreenOrientation orientation = DisplayServer::SCREEN_PORTRAIT;
+#ifdef AURORAOS_ENABLED
+	DisplayServer::ScreenOrientation sensor_orientation = DisplayServer::SCREEN_PORTRAIT;
+	DisplayServer::ScreenOrientation device_orientation = DisplayServer::SCREEN_PORTRAIT;
+	Size2i native_size{1, 1};
+#endif
+
 	Context context;
 
 	String ime_text;
@@ -159,7 +166,9 @@ class DisplayServerWayland : public DisplayServer {
 
 	static void dispatch_input_events(const Ref<InputEvent> &p_event);
 	void _dispatch_input_event(const Ref<InputEvent> &p_event);
-
+#ifdef AURORAOS_ENABLED
+	void _sensor_orientation_changed(DisplayServer::ScreenOrientation _orientation, const Size2i &size);
+#endif
 	void _resize_window(const Size2i &p_size);
 
 	virtual void _show_window();
@@ -218,6 +227,15 @@ public:
 	virtual int screen_get_dpi(int p_screen = SCREEN_OF_MAIN_WINDOW) const override;
 	virtual float screen_get_scale(int p_screen = SCREEN_OF_MAIN_WINDOW) const override;
 	virtual float screen_get_refresh_rate(int p_screen = SCREEN_OF_MAIN_WINDOW) const override;
+
+	virtual bool is_touchscreen_available() const override;
+
+	virtual void screen_set_orientation(ScreenOrientation p_orientation, int p_screen = SCREEN_OF_MAIN_WINDOW) override;
+	virtual ScreenOrientation screen_get_orientation(int p_screen = SCREEN_OF_MAIN_WINDOW) const override;
+#ifdef AURORAOS_ENABLED
+	virtual ScreenOrientation screen_get_sensor_orientation(int p_screen = SCREEN_OF_MAIN_WINDOW) const override;
+	virtual Size2i screen_get_native_size() const override;
+#endif
 
 	virtual void screen_set_keep_on(bool p_enable) override;
 	virtual bool screen_is_kept_on() const override;
