@@ -239,6 +239,14 @@ EditorPropertyNameProcessor::EditorPropertyNameProcessor() {
 	capitalize_string_remaps["loongarch64"] = "loongarch64";
 	capitalize_string_remaps["lowpass"] = "Low-pass";
 	capitalize_string_remaps["macos"] = "macOS";
+	capitalize_string_remaps["auroraos"] = "AuroraOS";
+	capitalize_string_remaps["armv7hl"] = "armv7hl";
+	capitalize_string_remaps["aarch64"] = "aarch64";
+	capitalize_string_remaps["x86_64"] = "x86_64";
+	capitalize_string_remaps["86x86"] = "86x86";
+	capitalize_string_remaps["108x108"] = "108x108";
+	capitalize_string_remaps["128x128"] = "128x128";
+	capitalize_string_remaps["172x172"] = "172x172";
 	capitalize_string_remaps["mb"] = "(MB)"; // Unit.
 	capitalize_string_remaps["mjpeg"] = "MJPEG";
 	capitalize_string_remaps["mms"] = "MMS";
