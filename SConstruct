@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from misc.utility.scons_hints import *
 
-EnsureSConsVersion(4, 0)
+EnsureSConsVersion(3, 0, 5)
 EnsurePythonVersion(3, 8)
 
 # System

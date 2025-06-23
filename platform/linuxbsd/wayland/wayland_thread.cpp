@@ -3677,6 +3677,7 @@ void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_wid
 			// fallback to wl_shell
 			ws.wl_shell_surface = wl_shell_get_shell_surface(registry.wl_shell, ws.wl_surface);
 			wl_shell_surface_add_listener(ws.wl_shell_surface, &wl_shell_surface_listener, &ws);
+			wl_shell_surface_set_maximized(ws.wl_shell_surface, nullptr); // ask compsitor configure us
 		}
 
 		if (registry.qt_surface_extension) {

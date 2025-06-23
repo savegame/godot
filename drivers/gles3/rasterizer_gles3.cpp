@@ -386,16 +386,6 @@ RasterizerGLES3::~RasterizerGLES3() {
 #ifdef AURORAOS_ENABLED
 #define LOG(...) fprintf(stderr, "INFO: " __VA_ARGS__)
 
-static struct aurora_fbo {
-	GLuint vbo = 0;
-	GLuint program = 0;
-	GLfloat vertices[9] = {
-		0.0f, 0.5f, 0.0f,
-		-0.5f, -0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f
-	};
-} s_aurora_fbo;
-
 static int loadShader(int shaderType, const char * source)
 {
 	int shader = glCreateShader(shaderType);
@@ -489,7 +479,7 @@ static void create_vbo(GLuint &vbo, GLuint &vao, const GLuint &shader, const GLi
 	glBindBuffer(GL_ARRAY_BUFFER, vbo); GL_CHECK_ERROR()
 	LOG("Vertex buffer is: %d\n", vbo);
 
-	GLfloat vertices[] = {
+	const GLfloat vertices[] = {
 		-1.0f, -1.0f,   0.0, 1.0,
 		 1.0f, -1.0f,   1.0, 1.0,
 		-1.0f,  1.0f,   0.0, 0.0,
@@ -497,12 +487,6 @@ static void create_vbo(GLuint &vbo, GLuint &vao, const GLuint &shader, const GLi
 		 1.0f, -1.0f,   1.0, 1.0,
 		 1.0f,  1.0f,   1.0, 0.0,
 	};
-
-	// GLfloat vertices[] = {
-	// 	-1.0f, -1.0f,
-	// 	3.0f, -1.0f,
-	// 	-1.0f, 3.0f,
-	// };
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW); GL_CHECK_ERROR()
 	// LOG("Size of vertices is %d\n", sizeof(vertices));
@@ -585,9 +569,6 @@ static void draw_vbo(GLES3::RenderTarget *rt, const bool &gles_over_gl, const Si
 			-sin(w), cos(w)
 		};
 		glUniformMatrix2fv(m_rotationLoc, 1, GL_FALSE, mat); GL_CHECK_ERROR()
-		LOG("a_position is: %i\n", m_positionLoc);
-		LOG("u_rotation is: %i\n", m_rotationLoc);
-		LOG("a_uv is: %i\n", m_uvLoc);
 		create_vbo(m_vbo, m_vao, r_program, m_positionLoc, m_uvLoc);
 	}
 
@@ -690,7 +671,7 @@ void RasterizerGLES3::_blit_render_target_to_screen(RID p_render_target, Display
 	Vector2i screen_rect_end = p_screen_rect.get_end();
 
 #ifdef AURORAOS_ENABLED
-	Size2i native_size = DisplayServer::get_singleton()->screen_get_native_size();
+	Size2i native_size = DisplayServer::get_singleton()->screen_get_native_size(); //TODO: fix to use window size instead
 	if (native_size.x > 1 || native_size.y > 1)
 		glViewport(0, 0, native_size.x, native_size.y);
 #endif
