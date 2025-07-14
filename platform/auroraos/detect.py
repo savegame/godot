@@ -1,6 +1,7 @@
 import os
 import platform
 import sys
+from platform_methods import validate_arch
 
 
 def is_active():
@@ -83,6 +84,9 @@ def get_flags():
 
 
 def configure(env):
+    # Validate arch - AuroraOS supports these architectures
+    supported_arches = ["x86_32", "x86_64", "arm32", "arm64"]
+    validate_arch(env["arch"], get_name(), supported_arches)
 
     ## Build type
 
@@ -282,8 +286,18 @@ def configure(env):
     # include paths for different versions of AuroraSDK width different SDL2 version  
     env.Append(LIBS=['GLESv2', 'EGL', 'pthread'])
 
-    if( env['arch'] == "x86" ): 
+    # Architecture-specific flags
+    if env['arch'] == "x86_32":
         env.Append(CPPFLAGS=['-DAURORAOS_i486_GLES2'])
+    elif env['arch'] == "x86_64":
+        # x86_64 specific flags if needed
+        pass
+    elif env['arch'] == "arm32":
+        # ARM32 specific flags if needed
+        pass
+    elif env['arch'] == "arm64":
+        # ARM64 specific flags if needed
+        pass
 
     if (platform.system() == "Linux"):
         env.Append(LIBS=['dl'])
