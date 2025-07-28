@@ -799,7 +799,7 @@ protected:
 					args.push_back("sb2");
 					args.push_back("-t");
 					args.push_back(target_string);
-					if (!cert_password.is_empty()) 
+					if (cert_password.is_empty())
 						cert_password = "nopassword"; // to prevent wait stdin if password not set by user
 					args.push_back("env");
 					args.push_back(String("KEY_PASSPHRASE=") + cert_password);
@@ -822,15 +822,6 @@ protected:
 						ep.step(String("Validate RPM file: ") + result_rpm_name, progress_from + (++current_step) * progress_step);
 						String rpm_path = rpm_prefix_path + separator + result_rpm_name;
 
-						// args.clear();
-						// args.push_back("config");
-						// args.push_back(String("target=") + target_string.replace(".default", ""));
-
-						// result = EditorNode::get_singleton()->execute_and_show_output(TTR("Set target for sfdk validator tool ") + target_string.replace(".default", ""), execute_binary, args, true, false);
-						// if (result != 0) {
-						// 	return ERR_CANT_CREATE;
-						// }
-
 						args.clear();
 						args.push_back("-c");
 						args.push_back(String("target=") + target_string.replace(".default", ""));
@@ -843,13 +834,6 @@ protected:
 						}
 					} else {
 						ep.step(String("Cant Validate RPM file: ") + result_rpm_name, progress_from + (++current_step) * progress_step);
-						// for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
-						// 	args.push_back( a->get() );
-						// }
-						// args.push_back("sb2");
-						// args.push_back("-t");
-						// args.push_back(target_string);
-						// args.push_back("")
 					}
 				}
 			}
@@ -1420,6 +1404,8 @@ public:
 								target.arch = arch_aarch64;
 								target.target_template = EDITOR_GET(prop_editor_binary_arm64);
 							}
+						} else {
+							continue;
 						}
 
 						print_verbose(String("Found target ") + mertarget_to_text(target) + String(" but arhc: ") + target_arch);
