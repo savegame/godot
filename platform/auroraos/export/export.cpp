@@ -406,27 +406,10 @@ protected:
 			steps++; //another step to sign PRM
 		}
 
-		// Add architecture validation logging
-		print_verbose("AuroraOS Export: === Architecture Validation ===");
-		print_verbose("AuroraOS Export: Target architecture: " + arch_to_text(package.target.arch));
-		print_verbose("AuroraOS Export: Template path: " + package.target.target_template);
-		
 		// Check if template file exists and is readable
 		if (!FileAccess::exists(package.target.target_template)) {
 			print_error("AuroraOS Export: Template file does not exist: " + package.target.target_template);
 			return ERR_FILE_NOT_FOUND;
-		}
-		
-		// Add architecture compatibility check
-		if (package.target.arch == arch_armv7hl) {
-			print_verbose("AuroraOS Export: Building for ARM32 (armv7hl) architecture");
-			print_verbose("AuroraOS Export: This should be compatible with your target device");
-		} else if (package.target.arch == arch_aarch64) {
-			print_verbose("AuroraOS Export: Building for ARM64 (aarch64) architecture");
-			print_verbose("AuroraOS Export: WARNING: This may not be compatible with armv7hl devices");
-		} else if (package.target.arch == arch_x86_64) {
-			print_verbose("AuroraOS Export: Building for x86_64 architecture");
-			print_verbose("AuroraOS Export: WARNING: This will NOT be compatible with armv7hl devices");
 		}
 
 		SDKConnectType sdk_tool = SDKConnectType::tool_sfdk;
@@ -459,15 +442,12 @@ protected:
 		switch (package.target.arch) {
 			case arch_armv7hl:
 				export_template = EDITOR_GET(prop_editor_binary_arm);
-				print_verbose("AuroraOS Export: Using ARM32 template: " + export_template);
 				break;
 			case arch_aarch64:
 				export_template = EDITOR_GET(prop_editor_binary_arm64);
-				print_verbose("AuroraOS Export: Using ARM64 template: " + export_template);
 				break;
 			case arch_x86:
 				export_template = EDITOR_GET(prop_editor_binary_x86_64);
-				print_verbose("AuroraOS Export: Using x86_64 template: " + export_template);
 				break;
 			default:
 				print_error("Wrong architecture of package");
@@ -846,7 +826,7 @@ protected:
 					args.push_back("sb2");
 					args.push_back("-t");
 					args.push_back(target_string);
-					if (!cert_password.is_empty()) 
+					if (cert_password.is_empty())
 						cert_password = "nopassword"; // to prevent wait stdin if password not set by user
 					args.push_back("env");
 					args.push_back(String("KEY_PASSPHRASE=") + cert_password);
@@ -869,15 +849,6 @@ protected:
 						ep.step(String("Validate RPM file: ") + result_rpm_name, progress_from + (++current_step) * progress_step);
 						String rpm_path = rpm_prefix_path + separator + result_rpm_name;
 
-						// args.clear();
-						// args.push_back("config");
-						// args.push_back(String("target=") + target_string.replace(".default", ""));
-
-						// result = EditorNode::get_singleton()->execute_and_show_output(TTR("Set target for sfdk validator tool ") + target_string.replace(".default", ""), execute_binary, args, true, false);
-						// if (result != 0) {
-						// 	return ERR_CANT_CREATE;
-						// }
-
 						args.clear();
 						args.push_back("-c");
 						args.push_back(String("target=") + target_string.replace(".default", ""));
@@ -890,13 +861,6 @@ protected:
 						}
 					} else {
 						ep.step(String("Cant Validate RPM file: ") + result_rpm_name, progress_from + (++current_step) * progress_step);
-						// for(List<String>::Element *a = pre_args.front(); a != nullptr; a = a->next()) {
-						// 	args.push_back( a->get() );
-						// }
-						// args.push_back("sb2");
-						// args.push_back("-t");
-						// args.push_back(target_string);
-						// args.push_back("")
 					}
 				}
 			}
@@ -1848,7 +1812,7 @@ public:
 								print_verbose("AuroraOS Export: Set ARM64 template: " + target.target_template);
 							}
 						} else {
-							print_verbose("AuroraOS Export: Architecture not enabled - target.target_template will remain empty");
+							continue;
 						}
 
 						print_verbose(String("AuroraOS Export: Target template path: ") + target.target_template);
