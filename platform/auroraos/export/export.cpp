@@ -1481,6 +1481,9 @@ public:
 
 		if (sdk_tool == SDKConnectType::tool_sfdk) {
 			sfdk_path = sdk_path + String("/bin/sfdk");
+			#ifdef WINDOWS_ENABLED
+			sfdk_path = sdk_path + String("/bin/sfdk.exe");
+			#endif
 
 			if (err != Error::OK || da.is_null()  || !da->file_exists(sfdk_path)) {
 				r_error = TTR("Wrong AuroraSDK path or sfdk tool not exists");
