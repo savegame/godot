@@ -1,6 +1,7 @@
 import os
 import platform
 import sys
+from platform_methods import validate_arch
 
 
 def is_active():
@@ -83,7 +84,6 @@ def get_flags():
 
 
 def configure(env):
-
     ## Build type
 
     if (env["target"] == "release"):
@@ -282,7 +282,8 @@ def configure(env):
     # include paths for different versions of AuroraSDK width different SDL2 version  
     env.Append(LIBS=['GLESv2', 'EGL', 'pthread'])
 
-    if( env['arch'] == "x86" ): 
+    # Architecture-specific flags
+    if env['arch'] == "x86":
         env.Append(CPPFLAGS=['-DAURORAOS_i486_GLES2'])
 
     if (platform.system() == "Linux"):

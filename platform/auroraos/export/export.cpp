@@ -44,6 +44,7 @@
 #include "editor/themes/editor_scale.h"
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
+#include "editor/editor_paths.h"
 #include "main/main.h"
 #include "modules/regex/regex.h"
 #include "modules/svg/image_loader_svg.h"
@@ -84,6 +85,11 @@
 #define prop_validator_enable "rpm_validator/enable"
 
 #define mersdk_rsa_key "/vmshare/ssh/private_keys/engine/mersdk"
+
+// Add missing TTR macro
+#ifndef TTR
+#define TTR(m_text) (m_text)
+#endif
 
 const String sailjail_minimum_required_permissions[] = {
 	 // required in any case
@@ -385,7 +391,7 @@ protected:
 	}
 
 	Error build_package(const NativePackage &package, const Ref<EditorExportPreset> &p_preset, const bool &p_debug, const String &sfdk_tool, EditorProgress &ep, int progress_from, int progress_full) {
-		int steps = 8; // if add some step to build process, need change it
+		int steps = 9; // if add some step to build process, need change it
 		const bool validate_rpm = p_preset->get(prop_validator_enable);
 		const bool sign_rpm = true; //p_preset->get(prop_aurora_sign_enable);
 		const bool sailjail_enabled = true;
@@ -398,6 +404,12 @@ protected:
 
 		if (sign_rpm) {
 			steps++; //another step to sign PRM
+		}
+
+		// Check if template file exists and is readable
+		if (!FileAccess::exists(package.target.target_template)) {
+			print_error("AuroraOS Export: Template file does not exist: " + package.target.target_template);
+			return ERR_FILE_NOT_FOUND;
 		}
 
 		SDKConnectType sdk_tool = SDKConnectType::tool_sfdk;
@@ -429,24 +441,12 @@ protected:
 
 		switch (package.target.arch) {
 			case arch_armv7hl:
-				// if (p_debug)
-				// 	export_template = String(p_preset->get(prop_custom_binary_arm_debug));
-				// if (export_template.is_empty())
-				// 	export_template = String(p_preset->get(prop_custom_binary_arm));
 				export_template = EDITOR_GET(prop_editor_binary_arm);
 				break;
 			case arch_aarch64:
-				// if (p_debug)
-				// 	export_template = String(p_preset->get(prop_custom_binary_aarch64_debug));
-				// if (export_template.is_empty())
-				// 	export_template = String(p_preset->get(prop_custom_binary_aarch64));
 				export_template = EDITOR_GET(prop_editor_binary_arm64);
 				break;
 			case arch_x86:
-				// if (p_debug)
-				// 	export_template = String(p_preset->get(prop_custom_binary_x86_debug));
-				// if (export_template.is_empty())
-				// 	export_template = String(p_preset->get(prop_custom_binary_x86));
 				export_template = EDITOR_GET(prop_editor_binary_x86_64);
 				break;
 			default:
@@ -454,17 +454,17 @@ protected:
 				return ERR_CANT_CREATE;
 		}
 
-		// if (p_debug)
-		// 	export_template = String(p_preset->get(prop_custom_binary_debug));
-		// if (export_template.is_empty())
-		// 	export_template = String(p_preset->get(prop_custom_binary_release));
-		// if (export_template.is_empty()) {
-		// 	export_template = EDITOR_GET(prop_custom_binary_release);
-		// }
-
 		if (export_template.is_empty()) {
 			print_error(String("No ") + arch_to_text(package.target.arch) + String(" template setuped"));
 			return ERR_CANT_CREATE;
+		}
+
+		// Validate template architecture compatibility
+		print_verbose("AuroraOS Export: Validating template architecture...");
+		Error template_check = validate_template_architecture(export_template, package.target.arch);
+		if (template_check != OK) {
+			print_error("AuroraOS Export: Template architecture validation failed");
+			return template_check;
 		}
 
 		String target_string = mertarget_to_text(package.target);
@@ -580,6 +580,14 @@ protected:
 
 		ep.step(String("create name.pck file.").replace("name", package.name), progress_from + (++current_step) * progress_step);
 		pck_path = broot_path + build_folder + data_dir_native + separator + package.name + separator + package.name + String(".pck");
+		
+		// Modify GDExtension files for AuroraOS before packing
+		Error gdext_err = modify_gdextension_files(package.name, p_preset, p_debug);
+		if (gdext_err != OK) {
+			print_error("AuroraOS Export: Failed to modify GDExtension files");
+			return gdext_err;
+		}
+		
 		// use custom data path
 		bool use_custom_dir = ProjectSettings::get_singleton()->get("application/config/use_custom_user_dir");
 		String custom_path = String(ProjectSettings::get_singleton()->get("application/config/custom_user_dir_name"));
@@ -591,6 +599,13 @@ protected:
 					.replace(sailjail_organization_name + String("."), sailjail_organization_name + String("/")) 
 			);
 		err = export_pack(p_preset, p_debug, pck_path);
+		
+		// Restore GDExtension files from backup
+		Error restore_err = restore_gdextension_files(p_preset);
+		if (restore_err != OK) {
+			print_error("AuroraOS Export: Failed to restore GDExtension files from backup");
+		}
+		
 		ProjectSettings::get_singleton()->set("application/config/use_custom_user_dir",use_custom_dir);
 		ProjectSettings::get_singleton()->set("application/config/custom_user_dir_name", custom_path);
 
@@ -691,6 +706,18 @@ protected:
 				return ERR_CANT_CREATE;
 			}
 			icon_number += 2;
+		}
+
+		// Copy GDExtension libraries
+		ep.step(String("copy GDExtension libraries"), progress_from + (++current_step) * progress_step);
+		
+		// Add diagnostic logging before copying libraries
+		log_gdextension_diagnostics(package.name, p_preset);
+		
+		err = copy_gdextension_libraries(broot_path, build_folder, data_dir_native, package.name, p_preset, p_debug);
+		if (err != Error::OK) {
+			print_error(String("Failed to copy GDExtension libraries"));
+			return err;
 		}
 
 		ep.step(String("setup SDK tool for ") + arch_to_text(package.target.arch) + String(" package build"), progress_from + (++current_step) * progress_step);
@@ -852,6 +879,331 @@ protected:
 		return Error::OK;
 	}
 
+	// Copy GDExtension libraries to buildroot
+	Error copy_gdextension_libraries(const String &broot_path, const String &build_folder, const String &data_dir_native, const String &package_name, const Ref<EditorExportPreset> &p_preset, bool p_debug) {
+		Vector<SharedObject> so_files;
+		print_verbose("AuroraOS Export: Copying GDExtension libraries");
+		
+		// Use save_pack to collect shared objects without writing to file
+		print_verbose("AuroraOS Export: Collecting GDExtension libraries via save_pack");
+		
+		// Create a temporary file path for the pack (we won't actually use it)
+		String temp_pack_path = EditorPaths::get_singleton()->get_temp_dir().path_join("temp_collect_libs.pck");
+		
+		// Call save_pack to collect shared objects
+		Error err = save_pack(p_preset, p_debug, temp_pack_path, &so_files, nullptr, nullptr, false);
+		
+		// Clean up the temporary file if it was created
+		if (FileAccess::exists(temp_pack_path)) {
+			DirAccess::remove_file_or_error(temp_pack_path);
+		}
+		
+		if (err != OK) {
+			print_verbose("AuroraOS Export: Could not collect GDExtension libraries via save_pack, continuing without them");
+			return OK; // Continue without libraries - they're optional
+		}
+		
+		if (so_files.size() > 0) {
+			print_verbose("AuroraOS Export: Found " + String::num_int64(so_files.size()) + " GDExtension libraries");
+			
+			// Copy each library to the lib directory
+			Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+			for (const SharedObject &so : so_files) {
+				print_verbose("AuroraOS Export: Copying GDExtension library: " + so.path);
+				String source_path = so.path;
+				String lib_name = source_path.get_file();
+				String dest_path = broot_path + build_folder + data_dir_native + separator + package_name + separator + String("lib") + separator + lib_name;
+				
+				print_verbose("AuroraOS Export: Copying GDExtension library: " + source_path + " -> " + dest_path);
+				
+				if (da->copy(source_path, dest_path) != Error::OK) {
+					print_error("AuroraOS Export: Failed to copy GDExtension library: " + source_path);
+					// Continue with other libraries even if one fails
+				}
+			}
+		} else {
+			print_verbose("AuroraOS Export: No GDExtension libraries found");
+		}
+		
+		return OK;
+	}
+
+	// Modify GDExtension files to use correct paths for AuroraOS
+	Error modify_gdextension_files(const String &package_name, const Ref<EditorExportPreset> &p_preset, bool p_debug) {
+		print_verbose("AuroraOS Export: Modifying GDExtension files for AuroraOS paths");
+		
+		// Get project resource path
+		String project_path = ProjectSettings::get_singleton()->get_resource_path();
+		
+		// Find all .gdextension files in the project
+		Vector<String> gdextension_files;
+		find_gdextension_files(project_path, gdextension_files);
+		
+		if (gdextension_files.size() == 0) {
+			print_verbose("AuroraOS Export: No GDExtension files found");
+			return OK;
+		}
+		
+		print_verbose("AuroraOS Export: Found " + String::num_int64(gdextension_files.size()) + " GDExtension files");
+		
+		// Backup and modify each .gdextension file
+		for (const String &gdext_path : gdextension_files) {
+			print_verbose("AuroraOS Export: Processing GDExtension file: " + gdext_path);
+			
+			// Create backup
+			String backup_path = gdext_path + ".auroraos_backup";
+			Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+			if (da->copy(gdext_path, backup_path) != OK) {
+				print_error("AuroraOS Export: Failed to backup GDExtension file: " + gdext_path);
+				continue;
+			}
+			
+			// Read original file
+			Ref<FileAccess> file = FileAccess::open(gdext_path, FileAccess::READ);
+			if (!file.is_valid()) {
+				print_error("AuroraOS Export: Failed to read GDExtension file: " + gdext_path);
+				continue;
+			}
+			
+			String content = file->get_as_text();
+			file->close();
+			
+			// Modify library paths for AuroraOS
+			String modified_content = modify_gdextension_content(content, package_name, p_preset, p_debug);
+			
+			// Write modified file
+			file = FileAccess::open(gdext_path, FileAccess::WRITE);
+			if (!file.is_valid()) {
+				print_error("AuroraOS Export: Failed to write modified GDExtension file: " + gdext_path);
+				continue;
+			}
+			
+			file->store_string(modified_content);
+			file->close();
+			
+			print_verbose("AuroraOS Export: Modified GDExtension file: " + gdext_path);
+		}
+		
+		return OK;
+	}
+	
+	// Restore GDExtension files from backup
+	Error restore_gdextension_files(const Ref<EditorExportPreset> &p_preset) {
+		print_verbose("AuroraOS Export: Restoring GDExtension files from backup");
+		
+		// Get project resource path
+		String project_path = ProjectSettings::get_singleton()->get_resource_path();
+		
+		// Find all .gdextension files in the project
+		Vector<String> gdextension_files;
+		find_gdextension_files(project_path, gdextension_files);
+		
+		// Restore each .gdextension file from backup
+		for (const String &gdext_path : gdextension_files) {
+			String backup_path = gdext_path + ".auroraos_backup";
+			
+			if (FileAccess::exists(backup_path)) {
+				print_verbose("AuroraOS Export: Restoring GDExtension file: " + gdext_path);
+				
+				Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+				if (da->copy(backup_path, gdext_path) != OK) {
+					print_error("AuroraOS Export: Failed to restore GDExtension file: " + gdext_path);
+					continue;
+				}
+				
+				// Remove backup file
+				da->remove(backup_path);
+			}
+		}
+		
+		return OK;
+	}
+	
+	// Find all .gdextension files in project
+	void find_gdextension_files(const String &path, Vector<String> &gdextension_files) {
+		Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+		da->change_dir(path);
+		da->list_dir_begin();
+		
+		String file_name = da->get_next();
+		while (file_name != "") {
+			String full_path = path + "/" + file_name;
+			
+			if (da->current_is_dir() && file_name != "." && file_name != "..") {
+				find_gdextension_files(full_path, gdextension_files);
+			} else if (file_name.ends_with(".gdextension")) {
+				gdextension_files.push_back(full_path);
+			}
+			
+			file_name = da->get_next();
+		}
+		
+		da->list_dir_end();
+	}
+	
+	// Modify GDExtension content to use AuroraOS paths
+	String modify_gdextension_content(const String &content, const String &package_name, const Ref<EditorExportPreset> &p_preset, bool p_debug) {
+		Vector<String> lines = content.split("\n");
+		String modified_content;
+		bool in_libraries_section = false;
+		
+		for (int i = 0; i < lines.size(); i++) {
+			String line = lines[i];
+			String trimmed_line = line.strip_edges();
+			
+			// Check if we're entering libraries section
+			if (trimmed_line == "[libraries]") {
+				in_libraries_section = true;
+				modified_content += line + "\n";
+				continue;
+			}
+			
+			// Check if we're leaving libraries section
+			if (in_libraries_section && trimmed_line.begins_with("[") && trimmed_line.ends_with("]") && trimmed_line != "[libraries]") {
+				in_libraries_section = false;
+			}
+			
+			// Modify library paths if we're in libraries section
+			if (in_libraries_section && trimmed_line.contains("=")) {
+				String key = trimmed_line.get_slice("=", 0).strip_edges();
+				String value = trimmed_line.get_slice("=", 1).strip_edges();
+				
+				// Remove quotes from value if present
+				if (value.begins_with("\"") && value.ends_with("\"")) {
+					value = value.substr(1, value.length() - 2);
+				}
+				
+				// Check if this is a target we should modify
+				bool should_modify = false;
+				
+				// Check for AuroraOS-specific targets
+				if (key.contains("auroraos.")) {
+					// Only modify if the debug/release type matches
+					if (p_debug && key.contains("debug")) {
+						should_modify = true;
+					} else if (!p_debug && key.contains("release")) {
+						should_modify = true;
+					}
+				}
+
+				if (should_modify) {
+					// Extract library filename from path
+					String lib_name = value.get_file();
+					// Replace with AuroraOS path
+					String new_value = String("/usr/share/") + package_name + String("/lib/") + lib_name;
+					modified_content += key + " = \"" + new_value + "\"\n";
+					print_verbose("AuroraOS Export: Modified library path: " + value + " -> " + new_value);
+				} else {
+					modified_content += line + "\n";
+				}
+			} else {
+				modified_content += line + "\n";
+			}
+		}
+		
+		return modified_content;
+	}
+
+	// Validate template architecture compatibility
+	Error validate_template_architecture(const String &template_path, TargetArch expected_arch) {
+		print_verbose("AuroraOS Export: Validating template architecture for: " + template_path);
+		
+		// Check if file exists
+		if (!FileAccess::exists(template_path)) {
+			print_error("AuroraOS Export: Template file does not exist: " + template_path);
+			return ERR_FILE_NOT_FOUND;
+		}
+		
+		// Try to run 'file' command to check architecture
+		List<String> args;
+		args.push_back(template_path);
+		
+		String output;
+		int exit_code;
+		Error err = OS::get_singleton()->execute("file", args, &output, &exit_code, true);
+		
+		if (err == OK && exit_code == 0) {
+			print_verbose("AuroraOS Export: File command output: " + output);
+			
+			// Check architecture in output
+			String arch_expected = arch_to_text(expected_arch);
+			bool arch_match = false;
+			
+			if (expected_arch == arch_armv7hl) {
+				arch_match = output.contains("ARM") && (output.contains("32-bit") || output.contains("armv7"));
+			} else if (expected_arch == arch_aarch64) {
+				arch_match = output.contains("ARM") && (output.contains("64-bit") || output.contains("aarch64"));
+			} else if (expected_arch == arch_x86_64) {
+				arch_match = output.contains("x86-64") || output.contains("x86_64");
+			}
+			
+			if (!arch_match) {
+				print_error("AuroraOS Export: Template architecture mismatch!");
+				print_error("AuroraOS Export: Expected: " + arch_expected);
+				print_error("AuroraOS Export: Template file info: " + output);
+				return ERR_INVALID_DATA;
+			} else {
+				print_verbose("AuroraOS Export: Template architecture validated successfully");
+			}
+		} else {
+			print_verbose("AuroraOS Export: Could not run 'file' command to check architecture (this is not critical)");
+		}
+		
+		return OK;
+	}
+
+	// Add diagnostic logging for GDExtension libraries
+	void log_gdextension_diagnostics(const String &package_name, const Ref<EditorExportPreset> &p_preset) {
+		print_verbose("AuroraOS Export: === GDExtension Diagnostics ===");
+		
+		// Get project resource path
+		String project_path = ProjectSettings::get_singleton()->get_resource_path();
+		
+		// Find all .gdextension files
+		Vector<String> gdextension_files;
+		find_gdextension_files(project_path, gdextension_files);
+		
+		print_verbose("AuroraOS Export: Found " + String::num_int64(gdextension_files.size()) + " GDExtension files");
+		
+		for (const String &gdext_path : gdextension_files) {
+			print_verbose("AuroraOS Export: Processing: " + gdext_path);
+			
+			// Read and analyze the file
+			Ref<FileAccess> file = FileAccess::open(gdext_path, FileAccess::READ);
+			if (file.is_valid()) {
+				String content = file->get_as_text();
+				file->close();
+				
+				// Check for architecture-specific entries
+				Vector<String> lines = content.split("\n");
+				bool in_libraries_section = false;
+				
+				for (const String &line : lines) {
+					String trimmed = line.strip_edges();
+					
+					if (trimmed == "[libraries]") {
+						in_libraries_section = true;
+						continue;
+					}
+					
+					if (in_libraries_section && trimmed.begins_with("[") && trimmed.ends_with("]")) {
+						in_libraries_section = false;
+					}
+					
+					if (in_libraries_section && trimmed.contains("=")) {
+						String key = trimmed.get_slice("=", 0).strip_edges();
+						String value = trimmed.get_slice("=", 1).strip_edges();
+						
+						if (key.contains("armv7hl") || key.contains("aarch64") || key.contains("x86_64") || 
+							key.contains("auroraos") || key.contains("linux")) {
+							print_verbose("AuroraOS Export: Found library entry: " + key + " = " + value);
+						}
+					}
+				}
+			}
+		}
+	}
+
 public:
 	EditorExportPlatformAuroraOS() {
 		// Ref<Image> img = memnew(Image(_auroraos_logo));
@@ -862,11 +1214,24 @@ public:
 	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) const override {
 		r_features->push_back("etc2");
 		r_features->push_back("astc");
+		
+		// Add architecture features based on enabled architectures
+		if (p_preset->get(prop_export_binary_arch_armv7hl).operator bool()) {
+			r_features->push_back("arm32");
+			r_features->push_back("armv7hl");
+		}
+		if (p_preset->get(prop_export_binary_arch_aarch64).operator bool()) {
+			r_features->push_back("arm64");
+			r_features->push_back("aarch64");
+		}
+		if (p_preset->get(prop_export_binary_arch_x86_64).operator bool()) {
+			r_features->push_back("x86_64");
+		}
 	}
 
 	virtual void get_platform_features(List<String> *r_features) const override {
 		r_features->push_back("mobile");
-		r_features->push_back(get_os_name());
+		r_features->push_back(get_os_name().to_lower());
 	}
 
 	String get_os_name() const override {
@@ -925,7 +1290,7 @@ public:
 		// r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_version_string, PROPERTY_HINT_PLACEHOLDER_TEXT, "1.0.0"), "1.0.0"));
 
 		// String gename =
-		// r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "harbour-$genname", PROPERTY_USAGE_READ_ONLY), "harbour-$genname"));
+		// r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "harbour-$gename", PROPERTY_USAGE_READ_ONLY), "harbour-$gename"));
 		// r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, prop_package_launcher_name, PROPERTY_HINT_PLACEHOLDER_TEXT, "Game Name [default if blank]"), ""));
 
 		// String global_icon_path = ProjectSettings::get_singleton()->get("application/config/icon");
@@ -1116,9 +1481,7 @@ public:
 
 		if (sdk_tool == SDKConnectType::tool_sfdk) {
 			sfdk_path = sdk_path + String("/bin/sfdk");
-#ifdef WINDOWS_ENABLED
-			sfdk_path += String(".exe");
-#endif
+
 			if (err != Error::OK || da.is_null()  || !da->file_exists(sfdk_path)) {
 				r_error = TTR("Wrong AuroraSDK path or sfdk tool not exists");
 				return false;
@@ -1270,54 +1633,81 @@ public:
 		ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
 
 		EditorProgress ep("export", "Exporting for AuroraOS", 100, true);
+		ep.step("=== Starting AuroraOS export process ===", 1);
 
 		String sdk_path = EDITOR_GET(prop_editor_sdk_path);
 		String sdk_configs_path = OS::get_singleton()->get_config_path();
 		String sfdk_tool = get_sfdk_path(p_preset);
+		
+		print_verbose("AuroraOS Export: SDK path: " + sdk_path);
+		print_verbose("AuroraOS Export: SFDK tool path: " + sfdk_tool);
 
 		SDKConnectType sdk_tool = SDKConnectType::tool_sfdk;
 		String tool = EDITOR_GET(prop_editor_tool);
 
 		if (tool == String("ssh")) {
 			sdk_tool = SDKConnectType::tool_ssh;
+			print_verbose("AuroraOS Export: Using SSH connection to SDK");
+		} else {
+			print_verbose("AuroraOS Export: Using SFDK tool connection");
 		}
 
 		String accept_templates;
 
 		ep.step("checking export template binaries.", 5);
+		print_verbose("AuroraOS Export: === Phase 1: Checking export template binaries ===");
 
 		for (int i = TargetArch::arch_MIN; i < TargetArch::arch_MAX; i++) {
 			String binary_template;
 			String arch_name = arch_to_text((TargetArch)i);
 			
-			if (p_preset->get(String(prop_export_binary_arch) + String("/") + arch_name)) {
+			print_verbose("AuroraOS Export: Checking architecture: " + arch_name);
+			
+			bool arch_enabled = p_preset->get(String(prop_export_binary_arch) + String("/") + arch_name);
+			print_verbose("AuroraOS Export: Architecture " + arch_name + " enabled in preset: " + (arch_enabled ? "YES" : "NO"));
+			
+			if (arch_enabled) {
+				print_verbose("AuroraOS Export: Architecture " + arch_name + " is enabled in preset");
 				switch(i) {
 				case TargetArch::arch_armv7hl:
 					binary_template = EDITOR_GET(prop_editor_binary_arm);
+					print_verbose("AuroraOS Export: ARM32 template path from settings: " + binary_template);
 					break;
 				case TargetArch::arch_aarch64:
 					binary_template = EDITOR_GET(prop_editor_binary_arm64);
+					print_verbose("AuroraOS Export: ARM64 template path from settings: " + binary_template);
 					break;
 				case TargetArch::arch_x86_64:
 					binary_template = EDITOR_GET(prop_editor_binary_x86_64);
+					print_verbose("AuroraOS Export: x86_64 template path from settings: " + binary_template);
 					break;
 				}
 				
 				if (binary_template.is_empty()) {
-					print_line("No %s template setuped", arch_name);
+					print_verbose("AuroraOS Export: No " + arch_name + " template setuped - skipping architecture");
 					// binary_template = String(p_preset->get(prop_custom_binary_release));
 				} else {
-					accept_templates += String(" ") + arch_name;
+					if (accept_templates.is_empty()) {
+						accept_templates = arch_name;
+					} else {
+						accept_templates += String(" ") + arch_name;
+					}
+					print_verbose("AuroraOS Export: Added " + arch_name + " to accept_templates");
 				}
+			} else {
+				print_verbose("AuroraOS Export: Architecture " + arch_name + " is disabled in preset");
 			}
 		}
 
+		print_verbose("AuroraOS Export: Final accept_templates string: '" + accept_templates + "'");
+
 		if (accept_templates.is_empty() /*&& aarch64_template.is_empty() && x86_template.is_empty()*/) {
-			print_error("No export templates found");
+			print_error("AuroraOS Export: No export templates found");
 			return ERR_CANT_CREATE;
 		}
 
 		ep.step("found export template binaries.", 10);
+		print_verbose("AuroraOS Export: === Phase 2: Getting SDK targets ===");
 		List<String> args;
 		List<String> output_list;
 
@@ -1346,7 +1736,7 @@ public:
 			String result_cmd = sfdk_tool;
 			for (int i = 0; i < args.size(); i++)
 				result_cmd += String(" ") + args.get(i);
-			print_verbose(result_cmd);
+			print_verbose("AuroraOS Export: Executing command: " + result_cmd);
 		}
 		//int result = EditorNode::get_singleton()->execute_and_show_output(TTR("Run sfdk tool"), sfdk_tool, args, true, false);
 		int result = execute_task(sfdk_tool, args, output_list);
@@ -1360,11 +1750,12 @@ public:
 			EditorNode::get_singleton()->show_warning(TTR("Building of AuroraOS RPM failed, check output for the error.\nAlternatively visit docs.godotengine.org for AuroraOS build documentation.\n Output: ") + result_cmd);
 			return ERR_CANT_CREATE;
 		} else {
+			print_verbose("AuroraOS Export: === Phase 3: Parsing SDK targets ===");
 			// parse export targets, and choose two latest targets
 			List<String>::Element *e = output_list.front();
 			while (e) {
 				String entry = e->get();
-				print_verbose(entry);
+				print_verbose("AuroraOS Export: Processing SDK target line: " + entry);
 				RegEx regex(".*AuroraOS-([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)(-base|-MB2)?-(armv7hl|x86_64|aarch64).*");
 				Array matches = regex.search_all(entry);
 				// print_verbose( String("Matches size: ") + Variant(matches.size()) );
@@ -1374,11 +1765,11 @@ public:
 					PackedStringArray names = rem->get_strings();
 					Dictionary formats;
 					formats["size"] = names.size();
-					print_verbose( String("match[0] strings size: {size}").format(formats));
+					print_verbose( String("AuroraOS Export: Regex match strings size: {size}").format(formats));
 					if (names.size() < 7) {
-						print_verbose("Wrong match");
+						print_verbose("AuroraOS Export: Wrong match - insufficient groups");
 						for (int d = 0; d < names.size(); d++) {
-							print_verbose(String("match[0].strings[") + String::num_int64(d) + String("]: ") + String(names[d]));
+							print_verbose(String("AuroraOS Export: match[0].strings[") + String::num_int64(d) + String("]: ") + String(names[d]));
 						}
 						target.arch = arch_unkown;
 					} else {
@@ -1390,25 +1781,42 @@ public:
 						target.addversion = names[5];
 						String target_arch = names[6];
 
-						target.arch = arch_unkown;
-						bool arch_is_enabled = accept_templates.contains(target_arch);
+						print_verbose("AuroraOS Export: Parsed target: " + target.name + "-" + names[1] + "." + names[2] + "." + names[3] + "." + names[4] + target.addversion + "-" + target_arch);
 
+						// First, determine the architecture from the string
+						if (target_arch == String("armv7hl")) {
+							target.arch = arch_armv7hl;
+						} else if (target_arch == String("x86_64")) {
+							target.arch = arch_x86_64;
+						} else if (target_arch == String("aarch64")) {
+							target.arch = arch_aarch64;
+						} else {
+							target.arch = arch_unkown;
+						}
+
+						// Then check if this architecture is enabled
+						bool arch_is_enabled = accept_templates.contains(target_arch);
+						print_verbose("AuroraOS Export: Target architecture '" + target_arch + "' enabled: " + (arch_is_enabled ? "YES" : "NO"));
+						print_verbose("AuroraOS Export: accept_templates contains: '" + accept_templates + "'");
+
+						// Only set template path if architecture is enabled
 						if (arch_is_enabled) {
-							if (target_arch == String("armv7hl")) {
-								target.arch = arch_armv7hl;
+							if (target.arch == arch_armv7hl) {
 								target.target_template = EDITOR_GET(prop_editor_binary_arm);
-							} else if (target_arch == String("x86_64")) {
-								target.arch = arch_x86_64;
+								print_verbose("AuroraOS Export: Set ARM32 template: " + target.target_template);
+							} else if (target.arch == arch_x86_64) {
 								target.target_template = EDITOR_GET(prop_editor_binary_x86_64);
-							} else if (target_arch == String("aarch64")) {
-								target.arch = arch_aarch64;
+								print_verbose("AuroraOS Export: Set x86_64 template: " + target.target_template);
+							} else if (target.arch == arch_aarch64) {
 								target.target_template = EDITOR_GET(prop_editor_binary_arm64);
+								print_verbose("AuroraOS Export: Set ARM64 template: " + target.target_template);
 							}
 						} else {
 							continue;
 						}
 
-						print_verbose(String("Found target ") + mertarget_to_text(target) + String(" but arhc: ") + target_arch);
+						print_verbose(String("AuroraOS Export: Target template path: ") + target.target_template);
+						print_verbose(String("AuroraOS Export: Found target ") + mertarget_to_text(target) + String(" with arch: ") + target_arch);
 
 						bool need_add_to_list = true;
 						List<MerTarget>::Element *it = targets.front();
@@ -1432,8 +1840,10 @@ public:
 								continue;
 						}
 						if (need_add_to_list) {
-							print_verbose(String("Target added ") + mertarget_to_text(target) + String(" to export list"));
+							print_verbose(String("AuroraOS Export: Target added ") + mertarget_to_text(target) + String(" to export list"));
 							targets.push_back(target);
+						} else {
+							print_verbose(String("AuroraOS Export: Target skipped ") + mertarget_to_text(target) + String(" (duplicate or older version)"));
 						}
 					}
 				}
@@ -1442,53 +1852,68 @@ public:
 			}
 
 			if (targets.size() == 0) {
-				print_error(String("No targets found."));
+				print_error("AuroraOS Export: No targets found.");
 				return ERR_CANT_CREATE;
 			}
 
+			print_verbose("AuroraOS Export: === Phase 4: Building packages ===");
+			print_verbose("AuroraOS Export: Total targets to build: " + String::num_int64(targets.size()));
 			int one_target_progress_length = (90 - 20) / targets.size();
 			int targets_succes = 0, target_num = 0;
 			for (List<MerTarget>::Element *it = targets.front(); it != nullptr; it = it->next(), target_num++) {
+				print_verbose("AuroraOS Export: === Building target " + String::num_int64(target_num + 1) + " of " + String::num_int64(targets.size()) + " ===");
 				NativePackage pack;
 
 				pack.release = vformat("%d", p_preset->get(prop_export_release_version).operator signed int());
-				print_verbose(String("Release version tag:") + pack.release);
+				print_verbose(String("AuroraOS Export: Release version tag: ") + pack.release);
 				pack.description = ProjectSettings::get_singleton()->get("application/config/description");
 				pack.launcher_name = p_preset->get(prop_export_application_launcher_name);
 				if (pack.launcher_name.is_empty()) {
-					print_verbose("Launcher name is empty, get launcher name ")
+					print_verbose("AuroraOS Export: Launcher name is empty, getting from project settings");
 					pack.launcher_name = GLOBAL_GET(prop_project_launcher_name);
 				}
 				if (pack.launcher_name.is_empty())
 					pack.launcher_name = ProjectSettings::get_singleton()->get("application/config/name");
 				pack.name = p_preset->get(prop_export_application_organization).operator String() + String(".") + p_preset->get(prop_export_application_name).operator String();
-				print_verbose(vformat("Genrated package name: %s", pack.name));
+				print_verbose(vformat("AuroraOS Export: Generated package name: %s", pack.name));
+				print_verbose(vformat("AuroraOS Export: Launcher name: %s", pack.launcher_name));
 
 				pack.version = p_preset->get(prop_export_package_version);
 				if (pack.version.is_empty())
 					pack.version = GLOBAL_GET(prop_project_package_version);
+				print_verbose(vformat("AuroraOS Export: Package version: %s", pack.version));
 				// TODO arch should be generated from current MerTarget
 				pack.target = it->get();
+				print_verbose("AuroraOS Export: Target: " + mertarget_to_text(pack.target));
+				print_verbose("AuroraOS Export: Target template path: " + pack.target.target_template);
 
 				if (pack.target.target_template.is_empty()) {
-					print_error(String("Target ") + mertarget_to_text(it->get()) + String(" template path is empty. Skip"));
+					print_error(String("AuroraOS Export: Target ") + mertarget_to_text(it->get()) + String(" template path is empty. Skip"));
+					print_verbose("AuroraOS Export: REASON: Template path is empty - this means the architecture was not properly enabled or template not configured");
 					continue;
 				}
 
+				print_verbose("AuroraOS Export: Starting build_package for target: " + mertarget_to_text(pack.target));
 				if (build_package(pack, p_preset, p_debug, sfdk_tool, ep, 20 + one_target_progress_length * target_num, one_target_progress_length) != Error::OK) {
 					// TODO Warning mesasgebox
-					print_error(String("Target ") + mertarget_to_text(it->get()) + String(" not exported succesfully"));
-				} else
+					print_error(String("AuroraOS Export: Target ") + mertarget_to_text(it->get()) + String(" not exported succesfully"));
+				} else {
 					targets_succes++;
+					print_verbose("AuroraOS Export: Target " + mertarget_to_text(it->get()) + " exported successfully");
+				}
 			}
 			if (targets_succes == targets.size()) {
 				ep.step("all targets build succes", 100);
+				print_verbose("AuroraOS Export: === All targets built successfully ===");
 			} else {
 				// TODO add Warning messagebox
 				ep.step("Not all targets builded", 100);
+				print_verbose("AuroraOS Export: === Not all targets built successfully ===");
+				print_verbose("AuroraOS Export: Successful targets: " + String::num_int64(targets_succes) + " / " + String::num_int64(targets.size()));
 			}
 		}
 
+		print_verbose("AuroraOS Export: === AuroraOS export process completed ===");
 		return Error::OK;
 	}
 

@@ -251,7 +251,9 @@ String OS_LinuxBSD::get_identifier() const {
 }
 
 String OS_LinuxBSD::get_name() const {
-#ifdef __linux__
+#ifdef AURORAOS_ENABLED
+	return "AuroraOS";
+#elif defined(__linux__)
 	return "Linux";
 #elif defined(__FreeBSD__)
 	return "FreeBSD";
@@ -547,6 +549,12 @@ bool OS_LinuxBSD::_check_internal_feature_support(const String &p_feature) {
 	}
 #endif
 
+#ifdef AURORAOS_ENABLED
+	if (p_feature == "auroraos") {
+		return true;
+	}
+#endif
+
 #ifndef __linux__
 	// `bsd` includes **all** BSD, not only "other BSD" (see `get_name()`).
 	if (p_feature == "bsd") {
@@ -558,7 +566,7 @@ bool OS_LinuxBSD::_check_internal_feature_support(const String &p_feature) {
 		return true;
 	}
 
-	// Match against the specific OS (`linux`, `freebsd`, `netbsd`, `openbsd`).
+	// Match against the specific OS (`linux`, `freebsd`, `netbsd`, `openbsd`, `auroraos`).
 	if (p_feature == get_name().to_lower()) {
 		return true;
 	}
