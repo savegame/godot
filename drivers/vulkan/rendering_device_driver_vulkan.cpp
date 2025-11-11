@@ -3027,7 +3027,8 @@ Error RenderingDeviceDriverVulkan::swap_chain_resize(CommandQueueID p_cmd_queue,
 
 	// No swapchain yet, this is the first time we're creating it.
 	if (!swap_chain->vk_swapchain) {
-		if (surface_capabilities.currentExtent.width == 0xFFFFFFFF) {
+		if (surface_capabilities.currentExtent.width == 0xFFFFFFFF
+			|| (surface_capabilities.currentExtent.width == 1 && surface_capabilities.currentExtent.height == 1)) {
 			// The current extent is currently undefined, so the current surface width and height will be clamped to the surface's capabilities.
 			// We make sure to overwrite surface_capabilities.currentExtent.width so that the same check further below
 			// does not set extent.width = CLAMP( surface->width, ... ) on the first run of this function, because
