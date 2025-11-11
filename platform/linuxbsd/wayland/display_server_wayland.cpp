@@ -98,7 +98,7 @@ void DisplayServerWayland::_dispatch_input_event(const Ref<InputEvent> &p_event)
 
 #ifdef AURORAOS_ENABLED
 void DisplayServerWayland::_sensor_orientation_changed(DisplayServer::ScreenOrientation _orientation, const Size2i &size) {
-	DisplayServer::ScreenOrientation new_orientation;
+	DisplayServer::ScreenOrientation new_orientation = _orientation;
 	
 	device_orientation = _orientation;
 	native_size = size;
@@ -162,14 +162,13 @@ void DisplayServerWayland::_sensor_orientation_changed(DisplayServer::ScreenOrie
 	Size2i new_size = size;
 	switch(sensor_orientation) {
 	case DisplayServer::SCREEN_PORTRAIT:
-		print_verbose("Message incoming sensor orientation:SCREEN_PORTRAIT");
 	case DisplayServer::SCREEN_REVERSE_PORTRAIT:
 		if (size.width < size.height) {
 			new_size = size;
 		} else {
 			new_size = {size.y, size.x};
 		}
-		print_verbose("Message incoming sensor orientation:SCREEN_REVERSE_PORTRAIT");
+		print_verbose("Message incoming sensor orientation: SCREEN_PORTRAIT or SCREEN_REVERSE_PORTRAIT");
 		break;
 	case DisplayServer::SCREEN_LANDSCAPE:
 	case DisplayServer::SCREEN_REVERSE_LANDSCAPE:
