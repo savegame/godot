@@ -764,12 +764,6 @@ private:
 
 	static void _xdg_activation_token_on_done(void *data, struct xdg_activation_token_v1 *xdg_activation_token, const char *token);
 
-	// Core Wayland event listeners.
-	static constexpr struct wl_display_listener wl_display_listener = {
-		.error = _wl_display_on_error,
-		.delete_id = _wl_display_on_delete_id
-	};
-
 	static constexpr struct wl_registry_listener wl_registry_listener = {
 		.global = _wl_registry_on_global,
 		.global_remove = _wl_registry_on_global_remove,
