@@ -38,6 +38,11 @@
 // Assume Linux.
 #ifdef AURORAOS_ENABLED
 #include <linux/input.h>
+#include "core/string/print_string.h"
+#include "wayland/protocol/wayland.gen.h"
+#include <EGL/eglplatform.h>
+#include <EGL/egl.h>
+#include <wayland-client-core.h>
 #else
 #include <linux/input-event-codes.h>
 #endif
@@ -435,17 +440,6 @@ void WaylandThread::_update_scale(int p_scale) {
 			seat_state_update_cursor(ss);
 		}
 	}
-}
-
-void WaylandThread::_wl_display_on_error(void *data, struct wl_display *wl_display, void *object_id, uint32_t code, const char *message) {
-	RegistryState *registry = (RegistryState *)data;
-	ERR_FAIL_NULL(registry);
-
-	WARN_PRINT(vformat("wl_display error [code: %i, object_id: %l]:.%s", (uint64_t)object_id, code, message));
-}
-
-void WaylandThread::_wl_display_on_delete_id(void *data, struct wl_display *wl_display, uint32_t id) {
-	DEBUG_LOG_WAYLAND_THREAD(vformat("delete_id: %i", id));
 }
 
 void WaylandThread::_wl_registry_on_global(void *data, struct wl_registry *wl_registry, uint32_t name, const char *interface, uint32_t version) {
@@ -1536,9 +1530,10 @@ void WaylandThread::_wl_seat_on_capabilities(void *data, struct wl_seat *wl_seat
 	// Pointer handling.
 	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
 		if (!ss->wl_pointer) {
+#ifdef AURORAOS_ENABLED // Do not create cursor surface 
 			ss->cursor_surface = wl_compositor_create_surface(ss->registry->wl_compositor);
 			wl_surface_commit(ss->cursor_surface);
-
+#endif
 			ss->wl_pointer = wl_seat_get_pointer(wl_seat);
 			wl_pointer_add_listener(ss->wl_pointer, &wl_pointer_listener, ss);
 
@@ -4270,9 +4265,15 @@ Error WaylandThread::init() {
 	wl_display = wl_display_connect(nullptr);
 	ERR_FAIL_NULL_V_MSG(wl_display, ERR_CANT_CREATE, "Can't connect to a Wayland display.");
 
-	wl_display_add_listener(wl_display, &wl_display_listener, &registry);
-
 	thread_data.wl_display = wl_display;
+#ifdef AURORAOS_ENABLED
+	// wl_display_roundtrip(wl_display);
+	// if we call eglGetDisplay with DEFAULT_DISPLAY in first time, then 
+	// it create wl_display connection inside hebris, and it may abort
+	// porgram running in any time (while poll events) 
+	// So we call eglGetDisplay when we create wl_display connection
+	EGLDisplay display = eglGetDisplay(wl_display);
+#endif
 
 	events_thread.start(_poll_events_thread, &thread_data);
 
