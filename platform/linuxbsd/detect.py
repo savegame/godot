@@ -81,6 +81,7 @@ def configure(env: "SConsEnvironment"):
     if env["auroraos"]:
         env.Append(CPPDEFINES=["AURORAOS_ENABLED"])
         env.Append(LINKFLAGS=["-lEGL"])
+        env.Append(CCFLAGS=["-fno-strict-aliasing"])
         env["x11"] = False
         env["libdecor"] = False
         env["wayland"] = True
